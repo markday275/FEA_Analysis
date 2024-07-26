@@ -1,2 +1,2 @@
-python Code to solve FEA 
-requires numpy
+Python Code to solve FEA 
+Requires numpy

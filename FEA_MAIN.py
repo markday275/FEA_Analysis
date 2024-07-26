@@ -55,6 +55,7 @@ class BarElement:
         self.localStiffnessmatrix = None
         self.StiffnessMatrix = None
         self.AssemblyMatrix = None
+        self.ReactionForces = None
 
     def __repr__(self):
         return (f"BarElement(name={self.name}, "
@@ -113,11 +114,12 @@ class Structure:
         self.nodes = []
         self.elements = []
         self.GlobalStiffnessMatrix = None
+        self.externalLoads = None
+        self.q = None
 
     def __repr__(self):
         return (f"Structure(name={self.name},\n nodes=[{', '.join([str(node.name) for node in self.nodes])}], "
                 f"\nelements=[{', '.join([str(element.name) for element in self.elements])}])")
-
 
     def add_element(self, element):
         self.elements.append(element)
@@ -144,12 +146,38 @@ class Structure:
             if element.StiffnessMatrix is None:
                 element.setStiffnessMatrix()
             k_g_e.append(element.AssemblyMatrix @ element.StiffnessMatrix @ element.AssemblyMatrix.T)
-        self.GlobalStiffnessMatrix = sum(k_g_e)
+        self.GlobalStiffnessMatrix = np.array(sum(k_g_e))
+
+    def setexeternalLoads(self):
+        Q = []
+        for node in self.nodes:
+            if node.DofX :
+                Q.append([node.EternalLoadX])
+            if node.DofY:
+                Q.append([node.EternalLoadY])
+        self.externalLoads = np.array(Q)
+            
+    def setq(self):
+        if self.GlobalStiffnessMatrix is None:
+            self.setGlobalStiffnessMatrix()
+        if self.externalLoads is None:
+            self.setexeternalLoads()
+        self.q = np.linalg.solve(self.GlobalStiffnessMatrix, self.externalLoads) 
+
+    def setElementRxnForces(self):
+        if self.q is None:
+            self.setq()
+        for element in self.elements:
+            if element.StiffnessMatrix is None:
+                element.setStiffnessMatrix()
+            if element.AssemblyMatrix is None:
+                element.setAssemblyMatrix()
+            element.ReactionForces = element.StiffnessMatrix @ element.AssemblyMatrix.T @ self.q
      
 
 def main():
     node1 = Node("Node1", 0, 0, False, False, 0, 0)
-    node2 = Node("Node2", 1, 0, True, True, -20000, 0)
+    node2 = Node("Node2", 1, 0, True, True, 0, -20000)
     node3 = Node("Node3", 0, 0, False, False, 0, 0)
 
     bar1 = BarElement("bar1",alpha= 0,E= 200e9, A=400e-6, L=1.1, node1= node1, node2= node2)
@@ -160,9 +188,9 @@ def main():
     structure.add_element(bar1)
     structure.add_element(bar2)
 
-    structure.setGlobalStiffnessMatrix()
+    structure.setElementRxnForces()
 
-    print(structure.GlobalStiffnessMatrix)
+    print(bar2.ReactionForces)
     
 
 if __name__ == "__main__":
