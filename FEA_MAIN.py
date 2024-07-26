@@ -26,14 +26,6 @@ class Node:
     def __repr__(self):
         return (f"Node(name={self.name},"
                 f"LocalDeflection={self.LocalDeflection}, GlobalDeflection={self.GlobalDeflection})")
-        
-
-    def setLocalDeflection(self, deflectionlocal):
-        self.LocalDeflection = deflectionlocal
-
-    def setGlobalDeflection(self, deflectionGlobal):
-        self.GlobalDeflection = deflectionGlobal
-
 
 class BarElement:
     """
@@ -56,6 +48,8 @@ class BarElement:
         self.StiffnessMatrix = None
         self.AssemblyMatrix = None
         self.ReactionForces = None
+        self.TransMatrix = None
+        self.deflection = None
 
     def __repr__(self):
         return (f"BarElement(name={self.name}, "
@@ -70,24 +64,25 @@ class BarElement:
                                                      [-1, 1]])
         self.localStiffnessmatrix = K_e
 
+    def setTransMatrix(self):
+        if self.alpha is None:
+            alpha = np.arctan2(self.node2.YPos - self.node1.YPos, self.node2.XPos - self.node1.XPos)
+        else:
+            alpha = self.alpha
 
+        self.TransMatrix = np.array([[np.cos(alpha), np.sin(alpha), 0, 0],
+                                 [0, 0, np.cos(alpha), np.sin(alpha)]])
         
     def setStiffnessMatrix(self):
         """
         returns the stiffness matrix as a numpy nested list ie [[],[]]\n
         IN GLOBAL CORDANATES 
         """
-        if self.alpha is None:
-            alpha = np.arctan2(self.node2.YPos - self.node1.YPos, self.node2.XPos - self.node1.XPos)
-        else:
-            alpha = self.alpha
-
-        trans_matrix = np.array([[np.cos(alpha), np.sin(alpha), 0, 0],
-                                 [0, 0, np.cos(alpha), np.sin(alpha)]])
-        
         if self.localStiffnessmatrix is None:
             self.setlocalStiffnessMatrix()
-        K_e_global = np.transpose(trans_matrix) @ self.localStiffnessmatrix @ trans_matrix
+        if self.TransMatrix is None:
+            self.setTransMatrix()
+        K_e_global = np.transpose(self.TransMatrix) @ self.localStiffnessmatrix @ self.TransMatrix
         self.StiffnessMatrix = K_e_global
 
     def setAssemblyMatrix(self):
@@ -115,7 +110,7 @@ class Structure:
         self.elements = []
         self.GlobalStiffnessMatrix = None
         self.externalLoads = None
-        self.q = None
+        self.GlobalDisplacement = None
 
     def __repr__(self):
         return (f"Structure(name={self.name},\n nodes=[{', '.join([str(node.name) for node in self.nodes])}], "
@@ -157,22 +152,27 @@ class Structure:
                 Q.append([node.EternalLoadY])
         self.externalLoads = np.array(Q)
             
-    def setq(self):
+    def setGlobalDisplacement(self):
         if self.GlobalStiffnessMatrix is None:
             self.setGlobalStiffnessMatrix()
         if self.externalLoads is None:
             self.setexeternalLoads()
-        self.q = np.linalg.solve(self.GlobalStiffnessMatrix, self.externalLoads) 
+        self.GlobalDisplacement = np.linalg.solve(self.GlobalStiffnessMatrix, self.externalLoads) 
 
     def setElementRxnForces(self):
-        if self.q is None:
-            self.setq()
+        if self.GlobalDisplacement is None:
+            self.setGlobalDisplacement()
         for element in self.elements:
             if element.StiffnessMatrix is None:
                 element.setStiffnessMatrix()
             if element.AssemblyMatrix is None:
                 element.setAssemblyMatrix()
-            element.ReactionForces = element.StiffnessMatrix @ element.AssemblyMatrix.T @ self.q
+            element.ReactionForces = element.StiffnessMatrix @ element.AssemblyMatrix.T @ self.GlobalDisplacement
+
+    def setElementDisplacement(self):
+        for element in self.elements:
+            element.
+
      
 
 def main():
