@@ -47,7 +47,7 @@ class BarElement:
         self.localStiffnessmatrix = None
         self.StiffnessMatrix = None
         self.AssemblyMatrix = None
-        self.ReactionForces = None
+        self.GlobalForces = None
         self.TransMatrix = None
         self.deflection = None
         self.forces = None
@@ -160,7 +160,7 @@ class Structure:
             self.setexeternalLoads()
         self.GlobalDisplacement = np.linalg.solve(self.GlobalStiffnessMatrix, self.externalLoads) 
 
-    def setElementRxnForces(self):
+    def setElementGlobalForces(self):
         if self.GlobalDisplacement is None:
             self.setGlobalDisplacement()
         for element in self.elements:
@@ -168,7 +168,7 @@ class Structure:
                 element.setStiffnessMatrix()
             if element.AssemblyMatrix is None:
                 element.setAssemblyMatrix()
-            element.ReactionForces = element.StiffnessMatrix @ element.AssemblyMatrix.T @ self.GlobalDisplacement
+            element.GlobalForces = element.StiffnessMatrix @ element.AssemblyMatrix.T @ self.GlobalDisplacement
 
     def setElementDisplacement(self):
         if self.GlobalDisplacement is None:
@@ -203,9 +203,9 @@ def main():
     structure.add_element(bar1)
     structure.add_element(bar2)
 
-    structure.setElementForces()
+    structure.setElementGlobalForces()
 
-    print(bar1.forces)
+    print(bar1.GlobalForces)
     
 
 if __name__ == "__main__":
