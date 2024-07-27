@@ -50,12 +50,14 @@ class BarElement:
         self.ReactionForces = None
         self.TransMatrix = None
         self.deflection = None
+        self.forces = None
 
     def __repr__(self):
         return (f"BarElement(name={self.name}, "
                 f"node1={self.node1}, node2={self.node2}, "
                 f"localStiffnessmatrix=\n{self.localStiffnessmatrix}, "
                 f"StiffnessMatrix=\n{self.StiffnessMatrix})")
+    
     def setlocalStiffnessMatrix(self):
         """
         returns the global stiffness matrix as a numpy nested list ie [[],[]]
@@ -170,8 +172,22 @@ class Structure:
             element.ReactionForces = element.StiffnessMatrix @ element.AssemblyMatrix.T @ self.GlobalDisplacement
 
     def setElementDisplacement(self):
+        if self.GlobalDisplacement is None:
+            self.setGlobalDisplacement()
         for element in self.elements:
-            element.
+            if element.TransMatrix is None:
+                element.setTransMatrix()
+            if element.AssemblyMatrix is None:
+                element.setAssemblyMatrix()
+            element.deflection = element.TransMatrix @ element.AssemblyMatrix.T @ self.GlobalDisplacement
+
+    def setElementForces(self):
+        for element in self.elements:
+            if element.localStiffnessmatrix is None:
+                element.setlocalStiffnessMatrix
+            if element.deflection is None:
+                self.setElementDisplacement()
+            element.forces = element.localStiffnessmatrix @ element.deflection
 
      
 
@@ -188,9 +204,9 @@ def main():
     structure.add_element(bar1)
     structure.add_element(bar2)
 
-    structure.setElementRxnForces()
+    structure.setElementForces()
 
-    print(bar2.ReactionForces)
+    print(bar1.forces)
     
 
 if __name__ == "__main__":
