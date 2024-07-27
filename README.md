@@ -37,7 +37,6 @@ The Structure class represents the overall structure made up of elements.
 
 Constructor
 python
-Copy code
 def __init__(self, name):
   name: Identifier for the structure.
   Methods
@@ -53,7 +52,6 @@ Example Usage
 The following example demonstrates how to use the classes to define a structure and perform FEA.
 
 python
-Copy code
 def main():
     node1 = Node("Node1", 0, 0, False, False, 0, 0)
     node2 = Node("Node2", 1, 0, True, True, 0, -20000)
