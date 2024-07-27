@@ -100,7 +100,6 @@ class BarElement:
             A_e[1][3] = 1
         self.AssemblyMatrix = A_e
 
-
 class Structure:
     """
     Is the overall structure that is made up of elements.\n
