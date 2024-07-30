@@ -118,6 +118,7 @@ class Structure:
         self.GlobalDisplacement = None
         self.Totdof = None
         self.dofmap = None
+        self.ReactionForces = None
 
     def __repr__(self):
         return (f"Structure(name={self.name},\n nodes=[{', '.join([str(node.name) for node in self.nodes])}], "
@@ -152,9 +153,6 @@ class Structure:
                 self.Totdof += 1
                 nodemap[1] = self.Totdof
             self.dofmap.append(nodemap)
-        
-
-
 
     def setGlobalStiffnessMatrix(self):
         k_g_e = []
@@ -212,7 +210,24 @@ class Structure:
                 self.setElementDisplacement()
             element.forces = element.localStiffnessmatrix @ element.deflection
 
-     
+    def setReactionForces(self):
+        rxn = []
+        for i in range(len(self.nodes)):
+            if (not (self.nodes[i].DofX and self.nodes[i].DofY)):
+                elementswithReactions = []
+                for element in self.elements:
+                    if ((self.nodes[i] == element.node1 ) or (self.nodes[i] == element.node2)):
+                        elementswithReactions.append(element)
+                rxnx , rxny = (0,0)
+                for elerxn in elementswithReactions:
+                    if elerxn.GlobalForces is None:
+                        self.setElementGlobalForces()
+                    rxnx += elerxn.GlobalForces[0][0]
+                    rxny += elerxn.GlobalForces[1][0]
+                rxn.append([rxnx, rxny])
+            else:
+                rxn.append([0,0])
+        self.ReactionForces = rxn
 
 def main():
     node1 = Node("Node1", 0, 0, False, False, 0, 0)
@@ -229,9 +244,9 @@ def main():
     structure.add_element(bar2)
     structure.add_element(bar3)
 
-    structure.setElementDisplacement()
+    structure.setReactionForces()
 
-    print(bar3.deflection)
+    print(structure.ReactionForces)
     
 
 if __name__ == "__main__":
