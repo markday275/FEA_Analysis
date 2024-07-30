@@ -87,17 +87,21 @@ class BarElement:
         K_e_global = np.transpose(self.TransMatrix) @ self.localStiffnessmatrix @ self.TransMatrix
         self.StiffnessMatrix = K_e_global
 
-    def setAssemblyMatrix(self):
-        dofnum = int(self.node1.DofX) + int(self.node1.DofY) + int(self.node2.DofX) + int(self.node2.DofY) 
+    def setAssemblyMatrix(self, dofnum, dofmap, nodelist): 
         A_e = np.zeros((dofnum,4))
+        for node in nodelist:
+            if node == self.node1:
+                i = nodelist.index(node)
+            if node == self.node2:
+                i2 = nodelist.index(node)
         if self.node1.DofX :
-            A_e[0][0] = 1
+            A_e[dofmap[i][0] - 1][0] = 1
         if self.node2.DofX:
-            A_e[0][2] = 1
+            A_e[dofmap[i2][0] - 1][2] = 1
         if self.node1.DofY:
-            A_e[1][1] = 1
+            A_e[dofmap[i][1] - 1][1] = 1
         if self.node2.DofY:
-            A_e[1][3] = 1
+            A_e[dofmap[i2][1] - 1][3] = 1
         self.AssemblyMatrix = A_e
 
 class Structure:
@@ -112,6 +116,8 @@ class Structure:
         self.GlobalStiffnessMatrix = None
         self.externalLoads = None
         self.GlobalDisplacement = None
+        self.Totdof = None
+        self.dofmap = None
 
     def __repr__(self):
         return (f"Structure(name={self.name},\n nodes=[{', '.join([str(node.name) for node in self.nodes])}], "
@@ -134,11 +140,29 @@ class Structure:
                 self.nodes.append(element.node2)
         self.nodes.sort(key=lambda s: s.name)
 
+    def setTotdof(self):
+        self.Totdof = 0
+        self.dofmap = []
+        for node in self.nodes:
+            nodemap = [0,0]
+            if node.DofX:
+                self.Totdof += 1
+                nodemap[0] = self.Totdof
+            if node.DofY:
+                self.Totdof += 1
+                nodemap[1] = self.Totdof
+            self.dofmap.append(nodemap)
+        
+
+
+
     def setGlobalStiffnessMatrix(self):
         k_g_e = []
         for element in self.elements:
             if element.AssemblyMatrix is None:
-                element.setAssemblyMatrix()
+                if self.Totdof is None:
+                    self.setTotdof()
+                element.setAssemblyMatrix(self.Totdof, self.dofmap, self.nodes)
             if element.StiffnessMatrix is None:
                 element.setStiffnessMatrix()
             k_g_e.append(element.AssemblyMatrix @ element.StiffnessMatrix @ element.AssemblyMatrix.T)
@@ -192,20 +216,22 @@ class Structure:
 
 def main():
     node1 = Node("Node1", 0, 0, False, False, 0, 0)
-    node2 = Node("Node2", 1, 0, True, True, 0, -20000)
-    node3 = Node("Node3", 0, 0, False, False, 0, 0)
+    node2 = Node("Node2", 0, 0, True, True, 500000, 0)
+    node3 = Node("Node3", 0, 0, True, False, 0, 0)
 
-    bar1 = BarElement("bar1",alpha= 0,E= 200e9, A=400e-6, L=1.1, node1= node1, node2= node2)
-    bar2 = BarElement("bar2",alpha= 55,E= 200e9, A=600e-6, L=0.8, node1= node2, node2= node3)
+    bar1 = BarElement("bar1",alpha= 60,E= 70e9, A=0.0028274, L=5, node1= node1, node2= node2)
+    bar2 = BarElement("bar2",alpha= 0,E= 70e9, A=0.0028274, L=5, node1= node1, node2= node3)
+    bar3 = BarElement("bar3",alpha= 360-60,E= 70e9, A=0.0028274, L=5, node1= node2, node2= node3)
 
 
     structure = Structure("struct")
     structure.add_element(bar1)
     structure.add_element(bar2)
+    structure.add_element(bar3)
 
-    structure.setElementGlobalForces()
+    structure.setElementDisplacement()
 
-    print(bar1.GlobalForces)
+    print(bar3.deflection)
     
 
 if __name__ == "__main__":
