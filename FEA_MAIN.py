@@ -20,8 +20,6 @@ class Node:
         self.EternalLoadX = EternalLoadX
         self.EternalLoadY = EternalLoadY
         self.EternalLoadZ = EternalLoadZ
-        self.LocalDeflection = None
-        self.GlobalDeflection = None
 
     def __repr__(self):
         return (f"Node(name={self.name},"
@@ -76,6 +74,79 @@ class BarElement:
 
         self.TransMatrix = np.array([[np.cos(alpha), np.sin(alpha), 0, 0],
                                  [0, 0, np.cos(alpha), np.sin(alpha)]])
+        
+    def setStiffnessMatrix(self):
+        """
+        returns the stiffness matrix as a numpy nested list ie [[],[]]\n
+        IN GLOBAL CORDANATES 
+        """
+        if self.localStiffnessmatrix is None:
+            self.setlocalStiffnessMatrix()
+        if self.TransMatrix is None:
+            self.setTransMatrix()
+        K_e_global = np.transpose(self.TransMatrix) @ self.localStiffnessmatrix @ self.TransMatrix
+        self.StiffnessMatrix = K_e_global
+
+    def setAssemblyMatrix(self, dofnum, dofmap, nodelist): 
+        A_e = np.zeros((dofnum,4))
+        for node in nodelist:
+            if node == self.node1:
+                i = nodelist.index(node)
+            if node == self.node2:
+                i2 = nodelist.index(node)
+        if self.node1.DofX :
+            A_e[dofmap[i][0] - 1][0] = 1
+        if self.node2.DofX:
+            A_e[dofmap[i2][0] - 1][2] = 1
+        if self.node1.DofY:
+            A_e[dofmap[i][1] - 1][1] = 1
+        if self.node2.DofY:
+            A_e[dofmap[i2][1] - 1][3] = 1
+        self.AssemblyMatrix = A_e
+
+class BeamElement:
+    def __init__(self, name, alpha, E, I, L, node1: Node, node2: Node):
+        self.name = name
+        self.alpha = alpha * np.pi / 180
+        self.E = E
+        self.I = I
+        self.L = L
+        self.node1 = node1
+        self.node2 = node2
+        self.localStiffnessmatrix = None
+        self.StiffnessMatrix = None
+        self.AssemblyMatrix = None
+        self.GlobalForces = None
+        self.TransMatrix = None
+        self.deflection = None
+        self.forces = None
+        self.stress = None
+        self.strain = None
+
+    def __repr__(self):
+        return (f"BeamElement(name={self.name}, "
+                f"node1={self.node1}, node2={self.node2}, "
+                f"localStiffnessmatrix=\n{self.localStiffnessmatrix}, "
+                f"StiffnessMatrix=\n{self.StiffnessMatrix})")
+    
+    def setlocalStiffnessMatrix(self):
+        """
+        returns the global stiffness matrix as a numpy nested list ie [[],[]]
+        """
+        K_e = (self.E * self.I / (self.L ** 3)) * np.array([[12,        6*self.L,       -12,        6*self.L],
+                                                            [6*self.L,  4*(self.L**2),  -6*self.L,  2*(self.L**2)],
+                                                            [-12,       -6*self.L,      12,         -6*self.L],
+                                                            [6*self.L,  2*(self.L**2),  -6*self.L,  4*(self.L**2)]])
+        self.localStiffnessmatrix = K_e
+
+    def setTransMatrix(self):
+        if self.alpha is None:
+            alpha = np.arctan2(self.node2.YPos - self.node1.YPos, self.node2.XPos - self.node1.XPos)
+        else:
+            alpha = self.alpha
+
+        self.TransMatrix = np.array([[np.cos(alpha), np.sin(alpha), 0, 0],
+                                     [0, 0, np.cos(alpha), np.sin(alpha)]])
         
     def setStiffnessMatrix(self):
         """
@@ -240,22 +311,17 @@ class Structure:
         
 def main():
     node1 = Node("Node1", 0, 0, False, False, 0, 0)
-    node2 = Node("Node2", 0, 0, True, True, 500000, 0)
-    node3 = Node("Node3", 0, 0, True, False, 0, 0)
+    node2 = Node("Node2", 0, 0, True, True, 10000, 40000)
 
-    bar1 = BarElement("bar1",alpha= 60,E= 70e9, A=0.0028274, L=5, node1= node1, node2= node2)
-    bar2 = BarElement("bar2",alpha= 0,E= 70e9, A=0.0028274, L=5, node1= node1, node2= node3)
-    bar3 = BarElement("bar3",alpha= 360-60,E= 70e9, A=0.0028274, L=5, node1= node2, node2= node3)
+    bar1 = BeamElement("bar1",alpha= 90,E= 200e9, I=2e-5, L=6, node1= node1, node2= node2)
 
 
     structure = Structure("struct")
     structure.add_element(bar1)
-    structure.add_element(bar2)
-    structure.add_element(bar3)
 
-    structure.setElementStressStrain()
+    structure.setElementDisplacement()
 
-    print(bar1.stress)
+    print(bar1.deflection)
     
 
 if __name__ == "__main__":
