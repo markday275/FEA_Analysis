@@ -51,6 +51,8 @@ class BarElement:
         self.TransMatrix = None
         self.deflection = None
         self.forces = None
+        self.stress = None
+        self.strain = None
 
     def __repr__(self):
         return (f"BarElement(name={self.name}, "
@@ -229,6 +231,13 @@ class Structure:
                 rxn.append([0,0])
         self.ReactionForces = rxn
 
+    def setElementStressStrain(self):
+        for element in self.elements:
+            if element.deflection is None:
+                self.setElementDisplacement()
+            element.strain = (element.deflection[1][0] - element.deflection[0][0]) / element.L
+            element.stress = element.E * element.strain
+        
 def main():
     node1 = Node("Node1", 0, 0, False, False, 0, 0)
     node2 = Node("Node2", 0, 0, True, True, 500000, 0)
@@ -244,9 +253,9 @@ def main():
     structure.add_element(bar2)
     structure.add_element(bar3)
 
-    structure.setReactionForces()
+    structure.setElementStressStrain()
 
-    print(structure.ReactionForces)
+    print(bar1.stress)
     
 
 if __name__ == "__main__":
