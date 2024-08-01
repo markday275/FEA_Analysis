@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 np.set_printoptions(linewidth=200, suppress=True)
 
 class Node:
@@ -196,10 +197,12 @@ class FrameElement:
         self.AssemblyMatrix = None
         self.GlobalForces = None
         self.TransMatrix = None
-        self.deflection = None
+        self.deflectionlocal = None
+        self.Globaldeflection = None
         self.forces = None
         self.stress = None
         self.strain = None
+
 
     def __repr__(self):
         return (f"FrameElement(name={self.name}, "
@@ -287,6 +290,7 @@ class Structure:
         self.Totdof = None
         self.dofmap = None
         self.ReactionForces = None
+        self.ax = plt.subplots()[1]
 
     def __repr__(self):
         return (f"Structure(name={self.name},\n nodes=[{', '.join([str(node.name) for node in self.nodes])}], "
@@ -373,7 +377,8 @@ class Structure:
                 element.setTransMatrix()
             if element.AssemblyMatrix is None:
                 element.setAssemblyMatrix()
-            element.deflection = element.TransMatrix @ element.AssemblyMatrix.T @ self.GlobalDisplacement
+            element.Globaldeflection = element.AssemblyMatrix.T @ self.GlobalDisplacement
+            element.deflectionlocal = element.TransMatrix @ element.Globaldeflection
 
     def setElementForces(self):
         for element in self.elements:
@@ -411,11 +416,33 @@ class Structure:
                 self.setElementDisplacement()
             element.strain = (element.deflection[1][0] - element.deflection[0][0]) / element.L
             element.stress = element.E * element.strain
+
+    def plotelements(self):
+        for element in self.elements:
+            xs = [element.node1.XPos, element.node2.XPos]
+            ys = [element.node1.YPos, element.node2.YPos]
+            self.ax.plot(xs, ys, 'b--')
+
+    def plotdeflectedelements(self, scale):
+        for element in self.elements:
+            if element.Globaldeflection is None:
+                self.setElementDisplacement()
+            xs = [element.node1.XPos + element.Globaldeflection[0][0] * scale, element.node2.XPos + element.Globaldeflection[3][0] * scale]
+            ys = [element.node1.YPos + element.Globaldeflection[1][0] * scale, element.node2.YPos + element.Globaldeflection[4][0] * scale]
+            self.ax.plot(xs, ys, 'r')
+
+
+    def plot(self, scale):
+        self.plotelements()
+        self.plotdeflectedelements(scale)
+        self.ax.grid(True)
+        plt.show()
+
         
 def main():
-    node1 = Node("Node1", 0, 0, False, False, 0, 0)
+    node1 = Node("Node1", 0, 10, False, False, 0, 0)
     node2 = Node("Node2", 0, 0, True, False, 0, 0, EternalMomentZ= 140000, DoFRotZ= True)
-    node3 = Node("Node3", 0, 0, False, False, 0, 0, DoFRotZ=True)
+    node3 = Node("Node3", 10, 0, False, False, 0, 0, DoFRotZ=True)
 
     frame1 = FrameElement("Frame1", alpha= 270, E= 200e9, A= 1e-5, I=5e-4, L=10, node1= node1, node2= node2)
     frame2 = FrameElement("Frame2", alpha= 0, E= 200e9, A= 1e-5, I=5e-4, L=10, node1= node2, node2= node3)
@@ -425,10 +452,10 @@ def main():
     structure.add_element(frame1)
     structure.add_element(frame2)
 
-    structure.setReactionForces()
+    structure.plot(50)
 
-    #print(frame1.GlobalForces)
-    print(structure.ReactionForces * 1e-3)
+    #print(frame1.deflection)
+    #print(structure.GlobalDisplacement)
     
 
 if __name__ == "__main__":
