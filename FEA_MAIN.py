@@ -1,12 +1,12 @@
 import numpy as np
-np.set_printoptions(linewidth=200)
+np.set_printoptions(linewidth=200, suppress=True)
 
 class Node:
     """
     Nodes class smallest thing in a FEA model\n
     All other classes the built up by nodes. A node must have a name 
     """
-    def __init__(self, name, XPos, YPos, DoFX, DoFY, EternalLoadX, EternalLoadY, ZPos = None, DoFZ = None, EternalLoadZ = None):
+    def __init__(self, name, XPos, YPos, DoFX, DoFY, EternalLoadX, EternalLoadY, ZPos = 0, DoFRotZ = False, EternalMomentZ = 0):
         """
         Class for Nodes that make up elements
         """
@@ -16,14 +16,13 @@ class Node:
         self.ZPos = ZPos
         self.DofX = DoFX
         self.DofY = DoFY
-        self.DofZ = DoFZ
+        self.DofRotZ = DoFRotZ
         self.EternalLoadX = EternalLoadX
         self.EternalLoadY = EternalLoadY
-        self.EternalLoadZ = EternalLoadZ
+        self.EternalMomentZ = EternalMomentZ
 
     def __repr__(self):
-        return (f"Node(name={self.name},"
-                f"LocalDeflection={self.LocalDeflection}, GlobalDeflection={self.GlobalDeflection})")
+        return (f"Node(name={self.name}")
 
 class BarElement:
     """
@@ -146,7 +145,9 @@ class BeamElement:
             alpha = self.alpha
 
         self.TransMatrix = np.array([[np.cos(alpha), np.sin(alpha), 0, 0],
-                                     [0, 0, np.cos(alpha), np.sin(alpha)]])
+                                     [0, 0, np.cos(alpha), np.sin(alpha)],
+                                     [0,0,0,0],
+                                     [0,0,0,1]])
         
     def setStiffnessMatrix(self):
         """
@@ -175,6 +176,100 @@ class BeamElement:
             A_e[dofmap[i][1] - 1][1] = 1
         if self.node2.DofY:
             A_e[dofmap[i2][1] - 1][3] = 1
+        self.AssemblyMatrix = A_e
+
+class FrameElement:
+    def __init__(self, name, alpha, E, A, I, L, node1: Node, node2: Node):
+        """
+        alpha is in degrees
+        """
+        self.name = name
+        self.alpha = alpha * np.pi / 180
+        self.E = E
+        self.A = A
+        self.I = I
+        self.L = L
+        self.node1 = node1
+        self.node2 = node2
+        self.localStiffnessmatrix = None
+        self.StiffnessMatrix = None
+        self.AssemblyMatrix = None
+        self.GlobalForces = None
+        self.TransMatrix = None
+        self.deflection = None
+        self.forces = None
+        self.stress = None
+        self.strain = None
+
+    def __repr__(self):
+        return (f"FrameElement(name={self.name}, "
+                f"node1={self.node1}, node2={self.node2} ")
+    
+    def setlocalStiffnessMatrix(self):
+        """
+        returns the global stiffness matrix as a numpy nested list ie [[],[]]
+        """
+        beta = (self.A * (self.L**2)) / self.I
+        Lsquared = self.L**2
+
+        K_e = ((self.E * self.I) / (self.L**3)) * np.array([[beta,  0,          0,          -beta,  0,          0],
+                                                            [0,     12,         6*self.L,   0,      -12,        6*self.L],
+                                                            [0,     6*self.L,   4*Lsquared, 0,      -6*self.L,  2*Lsquared],
+                                                            [-beta, 0,          0,          beta,   0,          0],
+                                                            [0,     -12,        -6*self.L,  0,      12,         -6*self.L],
+                                                            [0,     6*self.L,   2*Lsquared, 0,      -6*self.L,  4*Lsquared]])
+        self.localStiffnessmatrix = K_e
+
+    def setTransMatrix(self):
+        if self.alpha is None:
+            alpha = np.arctan2(self.node2.YPos - self.node1.YPos, self.node2.XPos - self.node1.XPos)
+        else:
+            alpha = self.alpha
+
+        submatrix = np.array([[np.cos(alpha),   np.sin(alpha), 0],
+                              [-np.sin(alpha),  np.cos(alpha), 0],
+                              [0,               0,             1]])
+        zeros = np.zeros_like(submatrix)
+
+        temp = np.vstack((submatrix, zeros))
+        temp2 = np.vstack((zeros, submatrix))
+        temp3 = np.hstack((temp, temp2))
+        self.TransMatrix = temp3
+        
+    def setStiffnessMatrix(self):
+        """
+        returns the stiffness matrix as a numpy nested list ie [[],[]]\n
+        IN GLOBAL CORDANATES 
+        """
+        if self.localStiffnessmatrix is None:
+            self.setlocalStiffnessMatrix()
+        if self.TransMatrix is None:
+            self.setTransMatrix()
+        K_e_global = np.transpose(self.TransMatrix) @ self.localStiffnessmatrix @ self.TransMatrix
+        self.StiffnessMatrix = K_e_global
+
+    def setAssemblyMatrix(self, dofnum, dofmap, nodelist): 
+        A_e = np.zeros((dofnum,6))
+        for node in nodelist:
+            if node == self.node1:
+                i = nodelist.index(node)
+            if node == self.node2:
+                i2 = nodelist.index(node)
+        if self.node1.DofX :
+            A_e[dofmap[i][0] - 1][0] = 1
+        if self.node2.DofX:
+            A_e[dofmap[i2][0] - 1][3] = 1
+
+        if self.node1.DofY:
+            A_e[dofmap[i][1] - 1][1] = 1
+        if self.node2.DofY:
+            A_e[dofmap[i2][1] - 1][4] = 1
+
+        if self.node1.DofRotZ:
+            A_e[dofmap[i][2] - 1][2] = 1
+        if self.node2.DofRotZ:
+            A_e[dofmap[i2][2] - 1][5] = 1
+
         self.AssemblyMatrix = A_e
 
 class Structure:
@@ -218,13 +313,16 @@ class Structure:
         self.Totdof = 0
         self.dofmap = []
         for node in self.nodes:
-            nodemap = [0,0]
+            nodemap = [0,0,0]
             if node.DofX:
                 self.Totdof += 1
                 nodemap[0] = self.Totdof
             if node.DofY:
                 self.Totdof += 1
                 nodemap[1] = self.Totdof
+            if node.DofRotZ:
+                self.Totdof += 1
+                nodemap[2] = self.Totdof
             self.dofmap.append(nodemap)
 
     def setGlobalStiffnessMatrix(self):
@@ -246,6 +344,8 @@ class Structure:
                 Q.append([node.EternalLoadX])
             if node.DofY:
                 Q.append([node.EternalLoadY])
+            if node.DofRotZ:
+                Q.append([node.EternalMomentZ])
         self.externalLoads = np.array(Q)
             
     def setGlobalDisplacement(self):
@@ -286,21 +386,24 @@ class Structure:
     def setReactionForces(self):
         rxn = []
         for i in range(len(self.nodes)):
-            if (not (self.nodes[i].DofX and self.nodes[i].DofY)):
+            if (not (self.nodes[i].DofX and self.nodes[i].DofY and self.nodes[i].DofRotZ)):
                 elementswithReactions = []
                 for element in self.elements:
                     if ((self.nodes[i] == element.node1 ) or (self.nodes[i] == element.node2)):
                         elementswithReactions.append(element)
-                rxnx , rxny = (0,0)
+                rxnx = 0
+                rxny = 0
+                rxnRotz = 0
                 for elerxn in elementswithReactions:
                     if elerxn.GlobalForces is None:
                         self.setElementGlobalForces()
                     rxnx += elerxn.GlobalForces[0][0]
                     rxny += elerxn.GlobalForces[1][0]
-                rxn.append([rxnx, rxny])
+                    rxnRotz += elerxn.GlobalForces[2][0]
+                rxn.append([rxnx, rxny, rxnRotz])
             else:
-                rxn.append([0,0])
-        self.ReactionForces = rxn
+                rxn.append([0,0,0])
+        self.ReactionForces = np.array(rxn)
 
     def setElementStressStrain(self):
         for element in self.elements:
@@ -311,17 +414,21 @@ class Structure:
         
 def main():
     node1 = Node("Node1", 0, 0, False, False, 0, 0)
-    node2 = Node("Node2", 0, 0, True, True, 10000, 40000)
+    node2 = Node("Node2", 0, 0, True, False, 0, 0, EternalMomentZ= 140000, DoFRotZ= True)
+    node3 = Node("Node3", 0, 0, False, False, 0, 0, DoFRotZ=True)
 
-    bar1 = BeamElement("bar1",alpha= 90,E= 200e9, I=2e-5, L=6, node1= node1, node2= node2)
+    frame1 = FrameElement("Frame1", alpha= 270, E= 200e9, A= 1e-5, I=5e-4, L=10, node1= node1, node2= node2)
+    frame2 = FrameElement("Frame2", alpha= 0, E= 200e9, A= 1e-5, I=5e-4, L=10, node1= node2, node2= node3)
 
 
     structure = Structure("struct")
-    structure.add_element(bar1)
+    structure.add_element(frame1)
+    structure.add_element(frame2)
 
-    structure.setElementDisplacement()
+    structure.setReactionForces()
 
-    print(bar1.deflection)
+    #print(frame1.GlobalForces)
+    print(structure.ReactionForces * 1e-3)
     
 
 if __name__ == "__main__":
