@@ -203,7 +203,6 @@ class FrameElement:
         self.stress = None
         self.strain = None
 
-
     def __repr__(self):
         return (f"FrameElement(name={self.name}, "
                 f"node1={self.node1}, node2={self.node2} ")
@@ -274,6 +273,29 @@ class FrameElement:
             A_e[dofmap[i2][2] - 1][5] = 1
 
         self.AssemblyMatrix = A_e
+
+    def interpolation(self, numpoints):
+        Psi = lambda x: 1 - x/self.L
+        Psi2 = lambda x: x/self.L
+
+        N1 = lambda x: (1 -                         ((3*x**2) / (self.L**2)) +  ((2*x**3) / (self.L**3)))
+        N2 = lambda x: (((x**3) / (self.L**2)) -    ((2*x**2) / (self.L)) +     x)
+        N3 = lambda x: (((3*x**2) / (self.L**2)) -  ((2*x**3) / (self.L**3)))
+        N4 = lambda x: (((x**3) / (self.L**2)) -    ((x**2) / (self.L)))
+
+        u = lambda x: Psi(x)*self.deflectionlocal[0][0] + Psi2(x) * self.deflectionlocal[3][0]
+        v = lambda x: N1(x)*self.deflectionlocal[1][0] + N2(x)*self.deflectionlocal[2][0] + N3(x)*self.deflectionlocal[4][0] + N4(x)*self.deflectionlocal[5][0]
+
+        x = np.linspace(0, self.L, numpoints)
+
+        xs_interpolated = u(x) * np.cos(self.alpha) - v(x) * np.sin(self.alpha)
+        ys_interpolated = u(x) * np.sin(self.alpha) + v(x) * np.cos(self.alpha)
+
+        return (xs_interpolated, ys_interpolated)
+
+
+
+
 
 class Structure:
     """
@@ -417,45 +439,53 @@ class Structure:
             element.strain = (element.deflection[1][0] - element.deflection[0][0]) / element.L
             element.stress = element.E * element.strain
 
-    def plotelements(self):
+    def plotelements(self, numpoints):
         for element in self.elements:
-            xs = [element.node1.XPos, element.node2.XPos]
-            ys = [element.node1.YPos, element.node2.YPos]
-            self.ax.plot(xs, ys, 'b--')
+            xs = np.linspace(element.node1.XPos, element.node2.XPos, numpoints)
+            ys = np.linspace(element.node1.YPos, element.node2.YPos, numpoints)
+            self.ax.plot(xs, ys, 'b.-')
 
-    def plotdeflectedelements(self, scale):
+    def plotdeflectedelements(self, scale, numpoints):
         for element in self.elements:
             if element.Globaldeflection is None:
                 self.setElementDisplacement()
-            xs = [element.node1.XPos + element.Globaldeflection[0][0] * scale, element.node2.XPos + element.Globaldeflection[3][0] * scale]
-            ys = [element.node1.YPos + element.Globaldeflection[1][0] * scale, element.node2.YPos + element.Globaldeflection[4][0] * scale]
-            self.ax.plot(xs, ys, 'r')
 
+            xs = np.linspace(element.node1.XPos, element.node2.XPos, numpoints)
+            ys = np.linspace(element.node1.YPos, element.node2.YPos, numpoints)
+            xs_inter, ys_inter = element.interpolation(numpoints)
+            xs_defle = xs + xs_inter * scale
+            ys_defle = ys + ys_inter * scale
+            self.ax.plot(xs_defle, ys_defle, 'r.-')
 
-    def plot(self, scale):
-        self.plotelements()
-        self.plotdeflectedelements(scale)
+    def plot(self, scale, numpoints = 2):
+        self.plotelements(numpoints)
+        self.plotdeflectedelements(scale, numpoints)
         self.ax.grid(True)
         plt.show()
 
         
 def main():
-    node1 = Node("Node1", 0, 10, False, False, 0, 0)
-    node2 = Node("Node2", 0, 0, True, False, 0, 0, EternalMomentZ= 140000, DoFRotZ= True)
-    node3 = Node("Node3", 10, 0, False, False, 0, 0, DoFRotZ=True)
+    node1 = Node("Node1", -4, 0, False, False, 0, 0, DoFRotZ= True)
+    node2 = Node("Node2", 0, 0, True, True, 0, 100000, DoFRotZ= True)
+    node3 = Node("Node3", 4, 0, False, False, 0, 0)
+    node4 = Node("Node4", 0, -4, False, False, 0, 0)
 
-    frame1 = FrameElement("Frame1", alpha= 270, E= 200e9, A= 1e-5, I=5e-4, L=10, node1= node1, node2= node2)
-    frame2 = FrameElement("Frame2", alpha= 0, E= 200e9, A= 1e-5, I=5e-4, L=10, node1= node2, node2= node3)
+    frame1 = FrameElement("Frame1", alpha= 0, E= 200e9, A= 1e-5, I=5e-4, L=4, node1= node1, node2= node2)
+    frame2 = FrameElement("Frame2", alpha= 0, E= 200e9, A= 1e-5, I=5e-4, L=4, node1= node2, node2= node3)
+    frame3 = FrameElement("Frame3", alpha=270, E=200e9, A=1e-5, I=5e-4, L=4, node1=node2, node2=node4)
 
 
     structure = Structure("struct")
     structure.add_element(frame1)
     structure.add_element(frame2)
+    structure.add_element(frame3)
 
-    structure.plot(50)
+    structure.plot(50, 10)
+
 
     #print(frame1.deflection)
-    #print(structure.GlobalDisplacement)
+    #structure.setElementDisplacement()
+    #print(frame1.Globaldeflection)
     
 
 if __name__ == "__main__":
