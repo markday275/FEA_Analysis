@@ -406,9 +406,9 @@ class Structure:
         for element in self.elements:
             if element.localStiffnessmatrix is None:
                 element.setlocalStiffnessMatrix
-            if element.deflection is None:
+            if element.deflectionlocal is None:
                 self.setElementDisplacement()
-            element.forces = element.localStiffnessmatrix @ element.deflection
+            element.forces = element.localStiffnessmatrix @ element.deflectionlocal
 
     def setReactionForces(self):
         rxn = []
@@ -434,9 +434,9 @@ class Structure:
 
     def setElementStressStrain(self):
         for element in self.elements:
-            if element.deflection is None:
+            if element.deflectionlocal is None:
                 self.setElementDisplacement()
-            element.strain = (element.deflection[1][0] - element.deflection[0][0]) / element.L
+            element.strain = (element.deflectionlocal[1][0] - element.deflectionlocal[0][0]) / element.L
             element.stress = element.E * element.strain
 
     def plotelements(self, numpoints):
@@ -463,16 +463,25 @@ class Structure:
         self.ax.grid(True)
         plt.show()
 
-        
-def main():
-    node1 = Node("Node1", -4, 0, False, False, 0, 0, DoFRotZ= True)
-    node2 = Node("Node2", 0, 0, True, True, 0, 100000, DoFRotZ= True)
-    node3 = Node("Node3", 4, 0, False, False, 0, 0)
-    node4 = Node("Node4", 0, -4, False, False, 0, 0)
+    def solve(self):
+        self.setGlobalStiffnessMatrix()
+        self.setexeternalLoads()
+        self.setGlobalDisplacement()
+        self.setElementGlobalForces()
+        self.setElementDisplacement()
+        self.setElementForces()
+        self.setReactionForces()
+        self.setElementStressStrain()
 
-    frame1 = FrameElement("Frame1", alpha= 0, E= 200e9, A= 1e-5, I=5e-4, L=4, node1= node1, node2= node2)
-    frame2 = FrameElement("Frame2", alpha= 0, E= 200e9, A= 1e-5, I=5e-4, L=4, node1= node2, node2= node3)
-    frame3 = FrameElement("Frame3", alpha=270, E=200e9, A=1e-5, I=5e-4, L=4, node1=node2, node2=node4)
+def main():
+    node1 = Node("Node1", 0, 2, False, False, 0, 0)
+    node2 = Node("Node2", 5, 2, True, True, 0, 0, DoFRotZ= True)
+    node3 = Node("Node3", 7.5, 2, True, True, 0, -150000, DoFRotZ=True)
+    node4 = Node("Node4", 5, 0, False, False, 0, 0)
+
+    frame1 = FrameElement("Frame1", alpha= 0, E= 200e9, A= 2e-4, I=640e-6, L=5, node1= node1, node2= node2)
+    frame2 = FrameElement("Frame2", alpha= 0, E= 200e9, A= 2e-4, I=640e-6, L=2.5, node1= node2, node2= node3)
+    frame3 = FrameElement("Frame3", alpha=270, E=70e9, A=400e-6, I=1e-10, L=2, node1=node2, node2=node4)
 
 
     structure = Structure("struct")
@@ -480,7 +489,8 @@ def main():
     structure.add_element(frame2)
     structure.add_element(frame3)
 
-    structure.plot(50, 10)
+    structure.solve()
+    print(frame2.GlobalForces * 1e-5)
 
 
     #print(frame1.deflection)
