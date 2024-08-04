@@ -180,7 +180,7 @@ class BeamElement:
         self.AssemblyMatrix = A_e
 
 class FrameElement:
-    def __init__(self, name, alpha, E, A, I, L, node1: Node, node2: Node):
+    def __init__(self, name: str, alpha: int, E: float, A: float, I:float, L: float, node1: Node, node2: Node):
         """
         alpha is in degrees
         """
@@ -274,7 +274,7 @@ class FrameElement:
 
         self.AssemblyMatrix = A_e
 
-    def interpolation(self, numpoints):
+    def interpolation(self, numpoints, point=None):
         Psi = lambda x: 1 - x/self.L
         Psi2 = lambda x: x/self.L
 
@@ -285,13 +285,15 @@ class FrameElement:
 
         u = lambda x: Psi(x)*self.deflectionlocal[0][0] + Psi2(x) * self.deflectionlocal[3][0]
         v = lambda x: N1(x)*self.deflectionlocal[1][0] + N2(x)*self.deflectionlocal[2][0] + N3(x)*self.deflectionlocal[4][0] + N4(x)*self.deflectionlocal[5][0]
+        if point is None:
+            x = np.linspace(0, self.L, numpoints)
 
-        x = np.linspace(0, self.L, numpoints)
+            xs_interpolated = u(x) * np.cos(self.alpha) - v(x) * np.sin(self.alpha)
+            ys_interpolated = u(x) * np.sin(self.alpha) + v(x) * np.cos(self.alpha)
 
-        xs_interpolated = u(x) * np.cos(self.alpha) - v(x) * np.sin(self.alpha)
-        ys_interpolated = u(x) * np.sin(self.alpha) + v(x) * np.cos(self.alpha)
-
-        return (xs_interpolated, ys_interpolated)
+            return (xs_interpolated, ys_interpolated)
+        else:
+            return(u(point)+v(point))
 
 
 
@@ -302,7 +304,7 @@ class Structure:
     Is the overall structure that is made up of elements.\n
     Takes elements by add_elements
     """
-    def __init__(self, name):
+    def __init__(self, name:str):
         self.name = name
         self.nodes = []
         self.elements = []
@@ -474,14 +476,14 @@ class Structure:
         self.setElementStressStrain()
 
 def main():
-    node1 = Node("Node1", 0, 2, False, False, 0, 0)
-    node2 = Node("Node2", 5, 2, True, True, 0, 0, DoFRotZ= True)
-    node3 = Node("Node3", 7.5, 2, True, True, 0, -150000, DoFRotZ=True)
-    node4 = Node("Node4", 5, 0, False, False, 0, 0)
+    node1 = Node("Node1", 0, 0, False, False, 0, 0)
+    node2 = Node("Node2", 0, 3, True, True, 10000, 0, DoFRotZ= True)
+    node3 = Node("Node3", 4.5, 3, True, True, 10000, 0, DoFRotZ=True)
+    node4 = Node("Node4", 4.5, 0, False, False, 0, 0)
 
-    frame1 = FrameElement("Frame1", alpha= 0, E= 200e9, A= 2e-4, I=640e-6, L=5, node1= node1, node2= node2)
-    frame2 = FrameElement("Frame2", alpha= 0, E= 200e9, A= 2e-4, I=640e-6, L=2.5, node1= node2, node2= node3)
-    frame3 = FrameElement("Frame3", alpha=270, E=70e9, A=400e-6, I=1e-10, L=2, node1=node2, node2=node4)
+    frame1 = FrameElement("Frame1", alpha= 90, E= 200e9, A= 5e-4, I=1e-5, L=3, node1= node1, node2= node2)
+    frame2 = FrameElement("Frame2", alpha= 0, E= 200e9, A= 5e-4, I=1e-5, L=4.5, node1= node2, node2= node3)
+    frame3 = FrameElement("Frame3", alpha=270, E=200e9, A=5e-4, I=1e-5, L=3, node1=node3, node2=node4)
 
 
     structure = Structure("struct")
@@ -490,7 +492,8 @@ def main():
     structure.add_element(frame3)
 
     structure.solve()
-    print(frame2.GlobalForces * 1e-5)
+    print(structure.GlobalDisplacement* 1e3)
+    structure.plot(20, 10)
 
 
     #print(frame1.deflection)
