@@ -482,7 +482,7 @@ def main():
     node4 = Node("Node4", 4.5, 0, False, False, 0, 0)
 
     frame1 = FrameElement("Frame1", alpha= 90, E= 200e9, A= 5e-4, I=1e-5, L=3, node1= node1, node2= node2)
-    frame2 = FrameElement("Frame2", alpha= 0, E= 200e9, A= 5e-4, I=1e-5, L=4.5, node1= node2, node2= node3)
+    frame2 = FrameElement("Frame2", alpha= 0, E= 200e9, A= 5e-4, I=1e-5, L=4., node1= node2, node2= node3)
     frame3 = FrameElement("Frame3", alpha=270, E=200e9, A=5e-4, I=1e-5, L=3, node1=node3, node2=node4)
 
 
