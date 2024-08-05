@@ -293,7 +293,7 @@ class FrameElement:
 
             return (xs_interpolated, ys_interpolated)
         else:
-            return(u(point)+v(point))
+            return(u(point) * np.cos(self.alpha) - v(point) * np.sin(self.alpha), u(point) * np.sin(self.alpha) + v(point) * np.cos(self.alpha))
 
 
 
@@ -492,7 +492,7 @@ def main():
     structure.add_element(frame3)
 
     structure.solve()
-    print(structure.GlobalDisplacement* 1e3)
+    print(frame2.interpolation(50, point=1.5))
     structure.plot(20, 10)
 
 
