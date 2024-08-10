@@ -238,8 +238,11 @@ class FrameElement:
            'CAL' = Concentrated Axial Load. where a is the distance of the point load from x_e = 0 \n 
         """
         Feq = np.zeros((6, 1))
-        for i in range(self.distributedLoadtype):
-            match self.distributedLoadtype:
+        if self.distributedLoadtype is None:
+            self.forceEquivalent = Feq
+            return
+        for i in range(len(self.distributedLoadtype)):
+            match self.distributedLoadtype[i]:
                 case 'UDL':
                     Feq += self.distributedLoadforce[i] * np.array([[0], 
                                                                 [self.L/2], 
@@ -449,10 +452,13 @@ class Structure:
             if node.DofRotZ:
                 Q.append([node.EternalMomentZ])
         Q = np.array(Q)
-        Q_eq = []
+        Q_eq = np.zeros_like(Q, dtype=float)
         for element in self.elements:
-            """go through and add global force eqilant"""
-        self.externalLoads = Q
+            if element.GlobalForcesEquivalent is None:
+                element.setGlobalForcesEquivalent()
+            Q_eq += element.GlobalForcesEquivalent
+            
+        self.externalLoads = Q + Q_eq
             
     def setGlobalDisplacement(self):
         if self.GlobalStiffnessMatrix is None:
@@ -560,8 +566,8 @@ def main():
     node4 = Node("Node4", 4.5, 0, False, False, 0, 0)
 
     frame1 = FrameElement("Frame1", alpha= 90, E= 200e9, A= 5e-4, I=1e-5, L=3, node1= node1, node2= node2)
-    frame2 = FrameElement("Frame2", alpha= 0, E= 200e9, A= 5e-4, I=1e-5, L=4., node1= node2, node2= node3, 
-                          distributedLoadtype= ['UDL', 'MSPL'], distributedLoadforce= [10000, 50000])
+    frame2 = FrameElement("Frame2", alpha= 0, E= 200e9, A= 5e-4, I=1e-5, L=4.5, node1= node2, node2= node3, 
+                          distributedLoadtype= ['UDL', 'MSPL'], distributedLoadforce= [-10000, -50000])
     frame3 = FrameElement("Frame3", alpha=270, E=200e9, A=5e-4, I=1e-5, L=3, node1=node3, node2=node4)
 
 
@@ -571,7 +577,7 @@ def main():
     structure.add_element(frame3)
 
     structure.solve()
-    print(frame2.interpolation(50, point=1.5))
+    print(structure.GlobalDisplacement*1e3)
     structure.plot(20, 10)
 
 
