@@ -316,7 +316,7 @@ class FrameElement:
             self.setforceEquivalent()
         self.GlobalForcesEquivalent = self.TransMatrix.T @ self.forceEquivalent
         
-        F_G = np.zeros((dofnum,1))
+        F_G = np.zeros((dofmap,1))
         for node in nodelist:
             if node == self.node1:
                 i = nodelist.index(node)
