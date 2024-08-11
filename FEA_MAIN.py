@@ -7,7 +7,7 @@ class Node:
     Nodes class smallest thing in a FEA model\n
     All other classes the built up by nodes. A node must have a name 
     """
-    def __init__(self, name, XPos, YPos, DoFX, DoFY, EternalLoadX, EternalLoadY, ZPos = 0, DoFRotZ = False, EternalMomentZ = 0):
+    def __init__(self, name, XPos= None, YPos= None, DoFX= False, DoFY= False, ExternalLoadX= 0, ExternalLoadY=0 , ZPos = 0, DoFRotZ = False, ExternalMomentZ = 0):
         """
         Class for Nodes that make up elements
         """
@@ -18,9 +18,9 @@ class Node:
         self.DofX = DoFX
         self.DofY = DoFY
         self.DofRotZ = DoFRotZ
-        self.EternalLoadX = EternalLoadX
-        self.EternalLoadY = EternalLoadY
-        self.EternalMomentZ = EternalMomentZ
+        self.ExternalLoadX = ExternalLoadX
+        self.ExternalLoadY = ExternalLoadY
+        self.ExternalMomentZ = ExternalMomentZ
 
     def __repr__(self):
         return (f"Node(name={self.name}")
@@ -201,6 +201,7 @@ class FrameElement:
         self.StiffnessMatrix = None
         self.AssemblyMatrix = None
         self.GlobalForces = None
+        self.localforces = None
         self.TransMatrix = None
         self.deflectionlocal = None
         self.Globaldeflection = None
@@ -237,7 +238,7 @@ class FrameElement:
            'DAL' = Distributed Axial Load.  W = the magnitude of the distributed axial force\n
            'CAL' = Concentrated Axial Load. where a is the distance of the point load from x_e = 0 \n 
         """
-        Feq = np.zeros((6, 1))
+        Feq = np.zeros((6, 1), dtype=float)
         if self.distributedLoadtype is None:
             self.forceEquivalent = Feq
             return
@@ -245,50 +246,50 @@ class FrameElement:
             match self.distributedLoadtype[i]:
                 case 'UDL':
                     Feq += self.distributedLoadforce[i] * np.array([[0], 
-                                                                [self.L/2], 
-                                                                [(self.L**2)/12], 
-                                                                [0], 
-                                                                [self.L/2], 
-                                                                [-1*(self.L**2)/12]])
+                                                                    [self.L/2], 
+                                                                    [(self.L**2)/12], 
+                                                                    [0], 
+                                                                    [self.L/2], 
+                                                                    [-1*(self.L**2)/12]])
                 case 'LVL':
                     Feq += self.distributedLoadforce[i] * np.array([[0], 
-                                                                [3*self.L/20], 
-                                                                [(self.L**2)/30], 
-                                                                [0], 
-                                                                [7*self.L/20], 
-                                                                [-1*(self.L**2)/20]])
+                                                                    [3*self.L/20], 
+                                                                    [(self.L**2)/30], 
+                                                                    [0], 
+                                                                    [7*self.L/20], 
+                                                                    [-1*(self.L**2)/20]])
                     
                 case 'PL':
                     Feq += self.distributedLoadforce[i] * np.array([[0], 
-                                                                [1 - ((3*self.a[i]**2) / (self.L**2)) + ((2*self.a[i]**3) / (self.L**3))], 
-                                                                [((self.a[i]**3) / (self.L**2)) - ((2*self.a[i]**2) / (self.L)) + self.a], 
-                                                                [0], 
-                                                                [((3*self.a[i]**2) / (self.L**2)) - ((2*self.a[i]**3) / (self.L**3))], 
-                                                                [((self.a[i]**3) / (self.L**2)) - ((self.a[i]**2) / (self.L))]])
+                                                                    [1 - ((3*self.a[i]**2) / (self.L**2)) + ((2*self.a[i]**3) / (self.L**3))], 
+                                                                    [((self.a[i]**3) / (self.L**2)) - ((2*self.a[i]**2) / (self.L)) + self.a[i]], 
+                                                                    [0], 
+                                                                    [((3*self.a[i]**2) / (self.L**2)) - ((2*self.a[i]**3) / (self.L**3))], 
+                                                                    [((self.a[i]**3) / (self.L**2)) - ((self.a[i]**2) / (self.L))]])
                     
                 case 'MSPL': 
                     Feq += self.distributedLoadforce[i] * np.array([[0], 
-                                                                [1/2], 
-                                                                [(self.L)/8], 
-                                                                [0], 
-                                                                [1/2], 
-                                                                [-1*(self.L)/8]])
+                                                                    [1/2], 
+                                                                    [(self.L)/8], 
+                                                                    [0], 
+                                                                    [1/2], 
+                                                                    [-1*(self.L)/8]])
                     
                 case 'DAL':
                     Feq += self.distributedLoadforce[i] * np.array([[self.L/2], 
-                                                                [0], 
-                                                                [0], 
-                                                                [self.L/2], 
-                                                                [0], 
-                                                                [0]])
+                                                                    [0], 
+                                                                    [0], 
+                                                                    [self.L/2], 
+                                                                    [0], 
+                                                                    [0]])
                     
                 case 'CAL':
                     Feq += self.distributedLoadforce[i] * np.array([[1 - (self.a[i]/self.L)], 
-                                                                [0], 
-                                                                [0], 
-                                                                [(self.a[i]/self.L)], 
-                                                                [0], 
-                                                                [0]])
+                                                                    [0], 
+                                                                    [0], 
+                                                                    [(self.a[i]/self.L)], 
+                                                                    [0], 
+                                                                    [0]])
                 
         self.forceEquivalent = Feq
                 
@@ -308,12 +309,35 @@ class FrameElement:
         temp3 = np.hstack((temp, temp2))
         self.TransMatrix = temp3
         
-    def setGlobalForcesEquivalent(self):
+    def setGlobalForcesEquivalent(self, dofmap, nodelist):
         if self.TransMatrix is None:
             self.setTransMatrix()
         if self.forceEquivalent is None:
             self.setforceEquivalent()
         self.GlobalForcesEquivalent = self.TransMatrix.T @ self.forceEquivalent
+        
+        F_G = np.zeros((dofnum,1))
+        for node in nodelist:
+            if node == self.node1:
+                i = nodelist.index(node)
+            if node == self.node2:
+                i2 = nodelist.index(node)
+        if self.node1.DofX :
+            F_G[dofmap[i][0] - 1][0] = 1
+        if self.node2.DofX:
+            F_G[dofmap[i2][0] - 1][0] = 1
+
+        if self.node1.DofY:
+            F_G[dofmap[i][1] - 1][0] = 1
+        if self.node2.DofY:
+            F_G[dofmap[i2][1] - 1][0] = 1
+
+        if self.node1.DofRotZ:
+            F_G[dofmap[i][2] - 1][0] = 1
+        if self.node2.DofRotZ:
+            F_G[dofmap[i2][2] - 1][0] = 1
+            
+        self.GlobalForcesEquivalent
         
     def setStiffnessMatrix(self):
         """
@@ -351,7 +375,10 @@ class FrameElement:
 
         self.AssemblyMatrix = A_e
 
-    def interpolation(self, numpoints, point=None):
+    def interpolation(self, numpoints, point=None, coords = None):
+        if coords is not None and coords not in {'local', 'global'}:
+            raise ValueError("The 'coords' parameter must be either 'local' or 'global'.")
+        
         Psi = lambda x: 1 - x/self.L
         Psi2 = lambda x: x/self.L
 
@@ -370,8 +397,20 @@ class FrameElement:
 
             return (xs_interpolated, ys_interpolated)
         else:
-            return(u(point) * np.cos(self.alpha) - v(point) * np.sin(self.alpha), u(point) * np.sin(self.alpha) + v(point) * np.cos(self.alpha))
-
+            if (coords == 'global'):
+                return(u(point) * np.cos(self.alpha) - v(point) * np.sin(self.alpha), u(point) * np.sin(self.alpha) + v(point) * np.cos(self.alpha))
+            elif (coords == 'local'):
+                return(u(point), v(point))
+            
+    def solveNodePos(self):
+        """node1, alhpa and L must be defined for this"""
+        if (self.node1.XPos is None or self.node1.YPos is None):
+            print("""node1, alhpa and L must be defined for this""")
+            return
+        if (self.node2.XPos is not None and self.node2.YPos is not None):
+            return
+        self.node2.XPos = self.node1.XPos + self.L * np.cos(self.alpha)
+        self.node2.YPos = self.node1.YPos + self.L * np.sin(self.alpha)
 
 
 
@@ -446,19 +485,20 @@ class Structure:
         Q = []
         for node in self.nodes:
             if node.DofX :
-                Q.append([node.EternalLoadX])
+                Q.append([node.ExternalLoadX])
             if node.DofY:
-                Q.append([node.EternalLoadY])
+                Q.append([node.ExternalLoadY])
             if node.DofRotZ:
-                Q.append([node.EternalMomentZ])
+                Q.append([node.ExternalMomentZ])
         Q = np.array(Q)
-        Q_eq = np.zeros_like(Q, dtype=float)
+        
+        Q_eq = np.zeros((6,1), dtype=float)
         for element in self.elements:
             if element.GlobalForcesEquivalent is None:
                 element.setGlobalForcesEquivalent()
             Q_eq += element.GlobalForcesEquivalent
             
-        self.externalLoads = Q + Q_eq
+        self.externalLoads = Q + np.resize(Q_eq, Q.shape)
             
     def setGlobalDisplacement(self):
         if self.GlobalStiffnessMatrix is None:
@@ -476,6 +516,7 @@ class Structure:
             if element.AssemblyMatrix is None:
                 element.setAssemblyMatrix()
             element.GlobalForces = element.StiffnessMatrix @ element.AssemblyMatrix.T @ self.GlobalDisplacement
+            element.localforces = element.TransMatrix.T @ element.GlobalForces
 
     def setElementDisplacement(self):
         if self.GlobalDisplacement is None:
@@ -522,7 +563,7 @@ class Structure:
         for element in self.elements:
             if element.deflectionlocal is None:
                 self.setElementDisplacement()
-            element.strain = (element.deflectionlocal[1][0] - element.deflectionlocal[0][0]) / element.L
+            element.strain = (element.deflectionlocal[3][0] - element.deflectionlocal[0][0]) / element.L
             element.stress = element.E * element.strain
 
     def plotelements(self, numpoints):
@@ -544,6 +585,8 @@ class Structure:
             self.ax.plot(xs_defle, ys_defle, 'r.-')
 
     def plot(self, scale, numpoints = 2):
+        for element in self.elements:
+            element.solveNodePos()
         self.plotelements(numpoints)
         self.plotdeflectedelements(scale, numpoints)
         self.ax.grid(True)
