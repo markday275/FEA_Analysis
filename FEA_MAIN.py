@@ -314,30 +314,7 @@ class FrameElement:
             self.setTransMatrix()
         if self.forceEquivalent is None:
             self.setforceEquivalent()
-        self.GlobalForcesEquivalent = self.TransMatrix.T @ self.forceEquivalent
-        
-        F_G = np.zeros((dofmap,1))
-        for node in nodelist:
-            if node == self.node1:
-                i = nodelist.index(node)
-            if node == self.node2:
-                i2 = nodelist.index(node)
-        if self.node1.DofX :
-            F_G[dofmap[i][0] - 1][0] = 1
-        if self.node2.DofX:
-            F_G[dofmap[i2][0] - 1][0] = 1
-
-        if self.node1.DofY:
-            F_G[dofmap[i][1] - 1][0] = 1
-        if self.node2.DofY:
-            F_G[dofmap[i2][1] - 1][0] = 1
-
-        if self.node1.DofRotZ:
-            F_G[dofmap[i][2] - 1][0] = 1
-        if self.node2.DofRotZ:
-            F_G[dofmap[i2][2] - 1][0] = 1
-            
-        self.GlobalForcesEquivalent
+        self.GlobalForcesEquivalent = self.AssemblyMatrix @ self.TransMatrix.T @ self.forceEquivalent
         
     def setStiffnessMatrix(self):
         """
@@ -492,13 +469,13 @@ class Structure:
                 Q.append([node.ExternalMomentZ])
         Q = np.array(Q)
         
-        Q_eq = np.zeros((6,1), dtype=float)
+        Q_eq = np.zeros_like(Q, dtype=float)
         for element in self.elements:
             if element.GlobalForcesEquivalent is None:
-                element.setGlobalForcesEquivalent()
+                element.setGlobalForcesEquivalent(self.dofmap, self.nodes)
             Q_eq += element.GlobalForcesEquivalent
             
-        self.externalLoads = Q + np.resize(Q_eq, Q.shape)
+        self.externalLoads = Q + Q_eq
             
     def setGlobalDisplacement(self):
         if self.GlobalStiffnessMatrix is None:

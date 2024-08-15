@@ -175,6 +175,15 @@ def test2020_2():
     
     #print Q for structure
     print(f"Global Forcing Vector (Q):\n {structure.externalLoads}\n")
+
+    #print deflections of the system (q)
+    print(f"Deflections of the system (q) in mm:\n {structure.GlobalDisplacement * 1e3}\n")
+
+    #local element forces and moments
+    printforces(structure)
+
+    #matplotlib structure at 25x deformations and element interpolated for 10 points
+    structure.plot(10, 10)
     
 
 
