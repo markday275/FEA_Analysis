@@ -55,7 +55,9 @@ def printforces(structure: Structure):
     print("Done\n")
     
 def printstress(structure: Structure):
-    """print elements stress and strain
+    """print elements stress and strain\n
+    Only considers axial stress\n
+    A negative value is compressive 
 
     Args:
         structure (Structure): _description_
@@ -82,11 +84,22 @@ def printK_G(structure: Structure):
     Args:
         structure (Structure): _description_
     """
-    print("Global Stiffness matrix (K_G) and each elements to the stiffness matrix (K_G_e)")
-    print(f"Global Stiffness matrix (K_G): \n {structure.GlobalStiffnessMatrix}\n")
+    print("Global Stiffness matrix (K_G) and each elements to the stiffness matrix (K_G_e) x10^6")
+    print(f"Global Stiffness matrix (K_G): \n {structure.GlobalStiffnessMatrix * 1e-6}\n")
     for element in structure.elements:
-        print(f"{element.name} KGe: \n {element.StiffnessMatrix}\n")
+        print(f"{element.name} KGe: \n {element.GlobalStiffnessMatrix * 1e-6}\n")
     print("Done\n")
+
+def printInterpolate(frame: FrameElement, point: float, coords= 'local'):
+    """prints interpolated values at the given point
+
+    Args:
+        frame (FrameElement): _description_
+        point (float): _description_
+        coords (str, optional): _description_. Defaults to 'local'.
+    """
+    print(f"{frame.name} displacement at L={point}: {frame.interpolation(0, point, coords)}")
+
     
     
     
@@ -184,12 +197,151 @@ def test2020_2():
 
     #matplotlib structure at 25x deformations and element interpolated for 10 points
     structure.plot(10, 10)
-    
 
+def test2021_1():
+    E = 200e9
+    I = 1e-6
+    A = 1e-4
+    
+    #set up nodes with nodal forces
+    node1 = Node("node1", XPos=0, YPos=0, DoFX=False, DoFY=False, ExternalLoadX= 0, ExternalLoadY=0)
+    node2 = Node("node2", XPos= None,YPos= None, DoFX= True, DoFY= False, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
+    node3 = Node("node3", XPos=None, YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 25000, ExternalLoadY= -10000, DoFRotZ=True)
+    
+    #set up of frames and dist loads
+    frame1 =FrameElement("frame1", 0, E=E, A=A, I=I, L=3, node1=node1, node2=node2,
+                         distributedLoadtype=['UDL'], distributedLoadforce=[-40000])
+    frame2 =FrameElement("frame2", 0, E=E, A=A, I=I, L=2, node1=node2, node2=node3)
+    
+    #set up of structure and added frames and solved
+    structure = Structure("structure1")
+    structure.add_element(frame1)
+    structure.add_element(frame2)
+    structure.solve()
+    
+    #print element assembly matrix for each element 
+    printA_e(structure)
+    
+    #print KG and KGe
+    printK_G(structure)
+    
+    #print force eq for each element
+    printf_eq(structure)
+    
+    #print Q for structure
+    print(f"Global Forcing Vector (Q):\n {structure.externalLoads}\n")
+
+    #print deflections of the system (q)
+    print(f"Deflections of the system (q) in mm:\n {structure.GlobalDisplacement * 1e3}\n")
+
+    #local element forces and moments
+    printforces(structure)
+
+    #matplotlib structure at 25x deformations and element interpolated for 10 points
+    structure.plot(10, 10)
+    
+def test2021_2():
+    E = 200e9
+    I = 7.5e-6
+    A = 9e-4
+    
+    #set up nodes with nodal forces
+    node2 = Node("node2", XPos=0, YPos= 0, DoFX= False, DoFY= False, ExternalLoadX= 0, ExternalLoadY=0, DoFRotZ= False)
+    node1 = Node("node1", XPos= 0,YPos= 2.5, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
+    node3 = Node("node3", XPos=None, YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
+    node4 = Node("node4", XPos=None, YPos=None, DoFX=False, DoFY=False, ExternalLoadX= 0, ExternalLoadY=0, DoFRotZ= False)
+
+    
+    #set up of frames and dist loads
+    frame1 =FrameElement("frame1", -90, E=E, A=A, I=I, L=2.5, node1=node1, node2=node2,
+                         distributedLoadtype=['LVL'], distributedLoadforce=[73573])
+    frame2 =FrameElement("frame2", -36.87, E=E, A=A, I=I, L=np.sqrt(2**2+1.5**2), node1=node1, node2=node3)
+    frame3 =FrameElement("frame3", -90, E=E, A=A, I=I, L=1, node1=node3, node2=node4)
+
+    #set up of structure and added frames and solved
+    structure = Structure("structure1")
+    structure.add_element(frame1)
+    structure.add_element(frame2)
+    structure.add_element(frame3)
+    structure.solve()
+    
+    #print element assembly matrix for each element 
+    printA_e(structure)
+    
+    #print KG and KGe
+    printK_G(structure)
+    
+    #print force eq for each element
+    printf_eq(structure)
+    
+    #print Q for structure
+    print(f"Global Forcing Vector (Q):\n {structure.externalLoads}\n")
+
+    #print deflections of the system (q)
+    print(f"Deflections of the system (q) in mm:\n {structure.GlobalDisplacement * 1e3}\n")
+
+    #local element forces and moments
+    printGlobalForces(structure)
+
+    #stress and strains
+    printstress(structure)
+
+    #interpolate at a point
+    printInterpolate(frame2, (frame2.L)/2, 'global')
+
+    #matplotlib structure at 25x deformations and element interpolated for 10 points
+    structure.plot(10, 10)
+
+def test2022_1():
+    E = 200e9
+    I = 5e-6
+    A = 2e-4
+    L1 = 4
+    L2 = np.sqrt(3**2 + 4**2)
+    L3 = 3
+    
+    #set up nodes with nodal forces
+    node1 = Node("node1", XPos=0, YPos=-4, DoFX=True, DoFY=False, ExternalLoadX= 0, ExternalLoadY=0, DoFRotZ=True)
+    node2 = Node("node2", XPos= None,YPos= None, DoFX= False, DoFY= False, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=False)
+    node3 = Node("node3", XPos=None, YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 20000, ExternalLoadY= 40000, DoFRotZ=True)
+    
+    #set up of frames and dist loads
+    frame1 =FrameElement("frame1", 180, E=E, A=A, I=I, L=L1, node1=node1, node2=node2,
+                         distributedLoadtype=['UDL'], distributedLoadforce=[25000])
+    frame2 =FrameElement("frame2", 36.86, E=E, A=A, I=I, L=L2, node1=node2, node2=node3)
+    frame3 =FrameElement("frame3", -90, E=E, A=A, I=I, L=L3, node1=node3, node2=node1)
+    
+    #set up of structure and added frames and solved
+    structure = Structure("structure1")
+    structure.add_element(frame1)
+    structure.add_element(frame2)
+    structure.add_element(frame3)
+    structure.solve()
+    
+    #print element assembly matrix for each element 
+    printA_e(structure)
+    
+    #print KG and KGe
+    printK_G(structure)
+    
+    #print force eq for each element
+    printf_eq(structure)
+    
+    #print Q for structure
+    print(f"Global Forcing Vector (Q):\n {structure.externalLoads}\n")
+
+    #print deflections of the system (q)
+    print(f"Deflections of the system (q) in mm:\n {structure.GlobalDisplacement * 1e3}\n")
+
+    #local element forces and moments
+    printforces(structure)
+
+    #matplotlib structure at 25x deformations and element interpolated for 10 points
+    structure.plot(10, 10)
 
 
 def main():
-    test2020_2()
+    test2022_1()
     
 
 if __name__ == "__main__":

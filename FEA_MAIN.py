@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-np.set_printoptions(linewidth=200, suppress=True)
+np.set_printoptions(linewidth=400, suppress=True)
 
 class Node:
     """
@@ -197,8 +197,10 @@ class FrameElement:
         self.a = distributedLoadpoint
         self.forceEquivalent = None
         self.GlobalForcesEquivalent = None
+        self.Qeq = None
         self.localStiffnessmatrix = None
         self.StiffnessMatrix = None
+        self.GlobalStiffnessMatrix = None
         self.AssemblyMatrix = None
         self.GlobalForces = None
         self.localforces = None
@@ -309,12 +311,13 @@ class FrameElement:
         temp3 = np.hstack((temp, temp2))
         self.TransMatrix = temp3
         
-    def setGlobalForcesEquivalent(self, dofmap, nodelist):
+    def setGlobalForcesEquivalent(self):
         if self.TransMatrix is None:
             self.setTransMatrix()
         if self.forceEquivalent is None:
             self.setforceEquivalent()
-        self.GlobalForcesEquivalent = self.AssemblyMatrix @ self.TransMatrix.T @ self.forceEquivalent
+        self.GlobalForcesEquivalent =  self.TransMatrix.T @ self.forceEquivalent
+        self.Qeq = self.AssemblyMatrix @ self.GlobalForcesEquivalent
         
     def setStiffnessMatrix(self):
         """
@@ -455,7 +458,8 @@ class Structure:
                 element.setAssemblyMatrix(self.Totdof, self.dofmap, self.nodes)
             if element.StiffnessMatrix is None:
                 element.setStiffnessMatrix()
-            k_g_e.append(element.AssemblyMatrix @ element.StiffnessMatrix @ element.AssemblyMatrix.T)
+            element.GlobalStiffnessMatrix = element.AssemblyMatrix @ element.StiffnessMatrix @ element.AssemblyMatrix.T
+            k_g_e.append(element.GlobalStiffnessMatrix)
         self.GlobalStiffnessMatrix = np.array(sum(k_g_e))
 
     def setexeternalLoads(self):
@@ -472,8 +476,8 @@ class Structure:
         Q_eq = np.zeros_like(Q, dtype=float)
         for element in self.elements:
             if element.GlobalForcesEquivalent is None:
-                element.setGlobalForcesEquivalent(self.dofmap, self.nodes)
-            Q_eq += element.GlobalForcesEquivalent
+                element.setGlobalForcesEquivalent()
+            Q_eq += element.Qeq
             
         self.externalLoads = Q + Q_eq
             
@@ -492,8 +496,10 @@ class Structure:
                 element.setStiffnessMatrix()
             if element.AssemblyMatrix is None:
                 element.setAssemblyMatrix()
-            element.GlobalForces = element.StiffnessMatrix @ element.AssemblyMatrix.T @ self.GlobalDisplacement
-            element.localforces = element.TransMatrix.T @ element.GlobalForces
+            if element.GlobalForcesEquivalent is None:
+                element.setGlobalForcesEquivalent()
+            element.GlobalForces = element.StiffnessMatrix @ element.AssemblyMatrix.T @ self.GlobalDisplacement - element.GlobalForcesEquivalent
+            element.localforces = element.TransMatrix.T @ element.GlobalForces - element.forceEquivalent
 
     def setElementDisplacement(self):
         if self.GlobalDisplacement is None:
