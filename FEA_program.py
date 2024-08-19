@@ -73,9 +73,9 @@ def printd_e(structure: Structure):
     Args:
         structure (Structure): _description_
     """
-    print("Element displacement vector in element co-ordinates")
+    print("Element displacement vector in element co-ordinates (d_e) mm")
     for element in structure.elements:
-        print(f"{element.name}: \n {element.deflectionlocal}\n")
+        print(f"{element.name}: \n {element.deflectionlocal * 1e3}\n")
     print("Done\n")
     
 def printK_G(structure: Structure):
@@ -108,7 +108,11 @@ def printReactions(structure: Structure):
     print("Done\n")
 
 def printstandardtestQ(structure: Structure):
+    """prints most answers for questions most commonly asked
 
+    Args:
+        structure (Structure): _description_
+    """
     #print element assembly matrix for each element 
     printA_e(structure)
     
@@ -120,6 +124,20 @@ def printstandardtestQ(structure: Structure):
     
     #print deflections of the system (q)
     print(f"Deflections of the system (q) in mm:\n {structure.GlobalDisplacement * 1e3}\n")
+
+    #local element forces and moments
+    printReactions(structure)
+
+def distloadangle(alpha):
+    """function that returns an x , y multiplier to help with non nodal loads at an angle\n
+    Args:
+        alpha (float): Angle in degrees. either the angle between Y_e and the load direction or alpha if load is all in Y_G.
+
+    Returns:
+        (x, y): A tuple than contants an x and y mulitpler 
+    """
+    return (np.sin(np.radians(alpha)), np.cos(np.radians(alpha)))
+
     
     
     
@@ -361,7 +379,7 @@ def test2022_1():
 
     printInterpolate(frame1, frame1.L/2, 'global')
 
-    #matplotlib structure at 10x deformations and element interpolated for 10 points
+    #matplotlib structure at 25x deformations and element interpolated for 10 points
     structure.plot(25, 10)
 
 def test2022_2():
@@ -378,12 +396,13 @@ def test2022_2():
     node3 = Node("node3", XPos=None, YPos= None, DoFX= False, DoFY= False, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=False)
     node4 = Node("node4", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
 
+    disloadX, disloadY = distloadangle(15)
 
     #set up of frames and dist loads
     frame1 =FrameElement("frame1", 0, E=E, A=A, I=I, L=L1, node1=node1, node2=node2,
-                         distributedLoadtype=['UDL'], distributedLoadforce=[-1000])
+                         distributedLoadtype=['UDL'], distributedLoadforce=[-5000])
     frame2 =FrameElement("frame2", 15, E=E, A=A, I=I, L=L2, node1=node2, node2=node4,
-                         distributedLoadtype=['DAL', 'UDL'], distributedLoadforce=[-1000*np.cos(15 * np.pi / 180), -1000*np.sin(15 * np.pi / 180)])
+                         distributedLoadtype=['DAL', 'UDL'], distributedLoadforce=[-5000*disloadX, -5000*disloadY])
     frame3 =FrameElement("frame3", -100, E=E, A=A, I=I, L=L3, node1=node2, node2=node3)
     
     #set up of structure and added frames and solved
@@ -395,8 +414,14 @@ def test2022_2():
 
     printstandardtestQ(structure)
 
+    printstress(structure)
+
+    printd_e(structure)
+
+    printInterpolate(frame3, frame3.L/2, 'global')
+
     #matplotlib structure at 10x deformations and element interpolated for 10 points
-    structure.plot(25, 10)
+    structure.plot(30, 10)
 
 
 
