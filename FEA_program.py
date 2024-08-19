@@ -22,7 +22,7 @@ def printA_e(structure: Structure):
     print("Done\n")
     
 def printf_eq(structure: Structure):
-    """Prints each force equivalent terms for the elements in a structure\n
+    """Prints each force equivalent terms for the elements in a structure (f_eq)\n
 
     Args:
         structure (Structure): Structure must be solved
@@ -100,6 +100,26 @@ def printInterpolate(frame: FrameElement, point: float, coords= 'local'):
     """
     print(f"{frame.name} displacement at L={point}: {frame.interpolation(0, point, coords)}")
 
+def printReactions(structure: Structure):
+
+    print("Nodal reaction loads (R)")
+    for node in structure.nodes:
+        print(f"{node.name}:\n {node.Reactions}\n")
+    print("Done\n")
+
+def printstandardtestQ(structure: Structure):
+
+    #print element assembly matrix for each element 
+    printA_e(structure)
+    
+    #print force eq for each element
+    printf_eq(structure)
+    
+    #print Q for structure
+    print(f"Global Forcing Vector (Q):\n {structure.externalLoads}\n")
+    
+    #print deflections of the system (q)
+    print(f"Deflections of the system (q) in mm:\n {structure.GlobalDisplacement * 1e3}\n")
     
     
     
@@ -140,7 +160,7 @@ def test2020_1():
     #print deflections of the system (q)
     print(f"Deflections of the system (q) in mm:\n {structure.GlobalDisplacement * 1e3}\n")
     
-    #support reaction forces and moments
+    #element forces and moments
     printGlobalForces(structure)
     
     #local element forces and moments
@@ -334,14 +354,54 @@ def test2022_1():
     print(f"Deflections of the system (q) in mm:\n {structure.GlobalDisplacement * 1e3}\n")
 
     #local element forces and moments
-    printforces(structure)
+    printReactions(structure)
 
-    #matplotlib structure at 25x deformations and element interpolated for 10 points
-    structure.plot(10, 10)
+    #print element forces in global coords
+    printGlobalForces(structure)
+
+    printInterpolate(frame1, frame1.L/2, 'global')
+
+    #matplotlib structure at 10x deformations and element interpolated for 10 points
+    structure.plot(25, 10)
+
+def test2022_2():
+    E = 200e9
+    I = 4.5e-6
+    A = 3e-4
+    L1 = 1.5
+    L2 = 2
+    L3 = 2.5
+    
+    #set up nodes with nodal forces
+    node1 = Node("node1", XPos=0, YPos=0, DoFX=False, DoFY=False, ExternalLoadX= 0, ExternalLoadY=0, DoFRotZ=False)
+    node2 = Node("node2", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
+    node3 = Node("node3", XPos=None, YPos= None, DoFX= False, DoFY= False, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=False)
+    node4 = Node("node4", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
+
+
+    #set up of frames and dist loads
+    frame1 =FrameElement("frame1", 0, E=E, A=A, I=I, L=L1, node1=node1, node2=node2,
+                         distributedLoadtype=['UDL'], distributedLoadforce=[-1000])
+    frame2 =FrameElement("frame2", 15, E=E, A=A, I=I, L=L2, node1=node2, node2=node4,
+                         distributedLoadtype=['DAL', 'UDL'], distributedLoadforce=[-1000*np.cos(15 * np.pi / 180), -1000*np.sin(15 * np.pi / 180)])
+    frame3 =FrameElement("frame3", -100, E=E, A=A, I=I, L=L3, node1=node2, node2=node3)
+    
+    #set up of structure and added frames and solved
+    structure = Structure("structure1")
+    structure.add_element(frame1)
+    structure.add_element(frame2)
+    structure.add_element(frame3)
+    structure.solve()
+
+    printstandardtestQ(structure)
+
+    #matplotlib structure at 10x deformations and element interpolated for 10 points
+    structure.plot(25, 10)
+
 
 
 def main():
-    test2022_1()
+    test2022_2()
     
 
 if __name__ == "__main__":

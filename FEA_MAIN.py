@@ -21,6 +21,7 @@ class Node:
         self.ExternalLoadX = ExternalLoadX
         self.ExternalLoadY = ExternalLoadY
         self.ExternalMomentZ = ExternalMomentZ
+        self.Reactions = None
 
     def __repr__(self):
         return (f"Node(name={self.name}")
@@ -384,9 +385,8 @@ class FrameElement:
             
     def solveNodePos(self):
         """node1, alhpa and L must be defined for this"""
-        if (self.node1.XPos is None or self.node1.YPos is None):
-            print("""node1, alhpa and L must be defined for this""")
-            return
+        if (self.node1.XPos is None or self.node1.YPos is None or self.L is None or self.alpha is None):
+            raise ValueError("""node1, alhpa and L must be defined for this""")
         if (self.node2.XPos is not None and self.node2.YPos is not None):
             return
         self.node2.XPos = self.node1.XPos + self.L * np.cos(self.alpha)
@@ -498,8 +498,8 @@ class Structure:
                 element.setAssemblyMatrix()
             if element.GlobalForcesEquivalent is None:
                 element.setGlobalForcesEquivalent()
-            element.GlobalForces = element.StiffnessMatrix @ element.AssemblyMatrix.T @ self.GlobalDisplacement - element.GlobalForcesEquivalent
-            element.localforces = element.TransMatrix.T @ element.GlobalForces - element.forceEquivalent
+            element.GlobalForces = element.StiffnessMatrix @ element.AssemblyMatrix.T @ self.GlobalDisplacement
+            element.localforces = element.TransMatrix.T @ element.GlobalForces
 
     def setElementDisplacement(self):
         if self.GlobalDisplacement is None:
@@ -521,26 +521,15 @@ class Structure:
             element.forces = element.localStiffnessmatrix @ element.deflectionlocal
 
     def setReactionForces(self):
-        rxn = []
-        for i in range(len(self.nodes)):
-            if (not (self.nodes[i].DofX and self.nodes[i].DofY and self.nodes[i].DofRotZ)):
-                elementswithReactions = []
+        for node in self.nodes:
+            if ((not node.DofX) or (not node.DofY) or (not node.DofRotZ) ):
+                if node.Reactions is None:
+                    node.Reactions = np.zeros((3,1))
                 for element in self.elements:
-                    if ((self.nodes[i] == element.node1 ) or (self.nodes[i] == element.node2)):
-                        elementswithReactions.append(element)
-                rxnx = 0
-                rxny = 0
-                rxnRotz = 0
-                for elerxn in elementswithReactions:
-                    if elerxn.GlobalForces is None:
-                        self.setElementGlobalForces()
-                    rxnx += elerxn.GlobalForces[0][0]
-                    rxny += elerxn.GlobalForces[1][0]
-                    rxnRotz += elerxn.GlobalForces[2][0]
-                rxn.append([rxnx, rxny, rxnRotz])
-            else:
-                rxn.append([0,0,0])
-        self.ReactionForces = np.array(rxn)
+                    if (element.node1 == node):
+                        node.Reactions += element.GlobalForces[0:3] - element.GlobalForcesEquivalent[0:3]
+                    if (element.node2 == node):
+                        node.Reactions += element.GlobalForces[3:6] - element.GlobalForcesEquivalent[3:6]
 
     def setElementStressStrain(self):
         for element in self.elements:
