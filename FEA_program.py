@@ -445,7 +445,7 @@ def test2023_1():
     frame2 =FrameElement("frame2", 53.1, E=E, A=A, I=I, L=L2, node1=node1, node2=node2,)
     frame3 =FrameElement("frame3", -53.1, E=E, A=A, I=I, L=L3, node1=node2, node2=node3)
     frame4 = FrameElement("frame4", 0, E=E, A=A, I=I, L=L4, node1=node1, node2=node3, 
-                          distributedLoadtype=['UDL'], distributedLoadforce=[-27300])
+                          distributedLoadtype=['UDL'], distributedLoadforce=[-36000])
     
     #set up of structure and added frames and solved
     structure = Structure("structure1")
@@ -459,7 +459,7 @@ def test2023_1():
 
     printforces(structure)
 
-    printInterpolate(frame4, frame4.L/2, 'global')
+    printInterpolate(frame4, frame4.L)
 
     structure.plot(5, 10)\
     
@@ -482,7 +482,7 @@ def test2023_2():
     frame2 =FrameElement("frame2", -90, E=E, A=A, I=I, L=L2, node1=node2, node2=node3,
                          distributedLoadtype=['LVL'], distributedLoadforce=[-117720])
     frame3 =FrameElement("frame3", -180, E=E, A=A, I=I, L=L3, node1=node3, node2=node4,
-                         distributedLoadtype=['UDL'], distributedLoadforce=[-156960])
+                         distributedLoadtype=['UDL'], distributedLoadforce=[-117720])
     
     #set up of structure and added frames and solved
     structure = Structure("structure1")
