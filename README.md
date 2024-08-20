@@ -1,7 +1,7 @@
 # Finite Element Analysis (FEA) Python Implementation
 ___
-1. [Introduction](# introduction)
-2. [Features](# features)
+1. [Introduction](#introduction)
+2. [Features](#features)
 
 ## Introduction
 This project provides a Python implementation of Finite Element Analysis (FEA) for structural analysis, focusing on bar elements and nodes. The implementation includes classes for nodes, bar elements, and the overall structure. This README serves as a comprehensive guide to understanding and using the provided code.
