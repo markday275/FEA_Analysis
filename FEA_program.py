@@ -2,6 +2,7 @@ import numpy as np
 from FEA_MAIN import *
 
 """function to set the force equivalent vector \n
+            w = pghd
             coords in element system
            'UDL' = Uniformly Distributed Load. 𝑤̅ = distributed shear load intensity\n
            'LVL' = Linearly Varying Distributed Load. where the line equation is y= W(x/L) and 𝑤̅ = distributed shear load intensity\n
@@ -500,7 +501,7 @@ def test2023_2():
     printInterpolate(frame1, 3, 'global')
 
     #matplotlib structure at 10x deformations and element interpolated for 10 points
-    structure.plot(30, 10)
+    structure.plot(100, 10)
 
 def main():
     test2023_2()
