@@ -1,6 +1,8 @@
 import numpy as np
 from FEA_MAIN import *
 
+"""This is the file you want to run, 2024 starts at line 506, fea_main does maths"""
+
 """function to set the force equivalent vector \n
             w = pghd
             coords in element system
@@ -503,8 +505,81 @@ def test2023_2():
     #matplotlib structure at 10x deformations and element interpolated for 10 points
     structure.plot(100, 10)
 
+def test2024_1():
+    E = 200e9
+    I = 5e-6
+    A = 3e-4
+    L1 = 5
+    L2 = 4
+    L3 = 3
+    
+    #set up nodes with nodal forces
+    node1 = Node("node1", XPos=0, YPos=2.4, DoFX=False, DoFY=False, ExternalLoadX= 0, ExternalLoadY=0, DoFRotZ=False)
+    node2 = Node("node2", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 15000, ExternalLoadY= -20000, DoFRotZ=True)
+    node3 = Node("node3", XPos=None, YPos= None, DoFX= True, DoFY= False, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
+
+    #set up of frames and dist loads
+    frame1 =FrameElement("frame1", 0, E=E, A=A, I=I, L=L1, node1=node1, node2=node2,
+                          distributedLoadtype=['UDL'], distributedLoadforce=[-30000])
+    frame2 =FrameElement("frame2", -36.9, E=E, A=A, I=I, L=L2, node1=node1, node2=node3)
+    frame3 =FrameElement("frame3", -(180-53.1), E=E, A=A, I=I, L=L3, node1=node2, node2=node3)
+    
+    #set up of structure and added frames and solved
+    structure = Structure("structure1")
+    structure.add_element(frame1)
+    structure.add_element(frame2)
+    structure.add_element(frame3)
+    structure.solve()
+
+    printstandardtestQ(structure)
+
+    printforces(structure)
+
+    printstress(structure)
+
+    printd_e(structure)
+
+    printInterpolate(frame2, 3, 'global')
+    printInterpolate(frame2, 3, 'local')
+
+    #matplotlib structure at 20x deformations and element interpolated for 10 points
+    structure.plot(20, 10)
+
+def test2024_2():
+    E = 200e9
+    I = 5e-6
+    A = 3e-4
+    L1 = 2.5
+    L2 = np.sqrt(3**2 + 0.5**2)
+    
+    #set up nodes with nodal forces
+    node1 = Node("node1", XPos=0, YPos=0, DoFX=False, DoFY=False, ExternalLoadX= 0, ExternalLoadY=0, DoFRotZ=False)
+    node2 = Node("node2", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
+    node3 = Node("node3", XPos=None, YPos= None, DoFX= False, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=False)
+
+    disloadX, disloadY = distloadangle(9.46)
+    
+    #set up of frames and dist loads
+    frame1 =FrameElement("frame1", 90, E=E, A=A, I=I, L=L1, node1=node1, node2=node2)
+    frame2 =FrameElement("frame2", -9.46, E=E, A=A, I=I, L=L2, node1=node2, node2=node3,
+                         distributedLoadtype=['DAL', 'UDL'], distributedLoadforce=[1000*4*disloadX, -1000*4*disloadY])
+    
+    #set up of structure and added frames and solved
+    structure = Structure("structure1")
+    structure.add_element(frame1)
+    structure.add_element(frame2)
+    structure.solve()
+
+    printstandardtestQ(structure)
+
+    printforces(structure)
+
+    #matplotlib structure at 25x deformations and element interpolated for 10 points
+    structure.plot(25, 10)
+
 def main():
-    test2023_2()
+    test2024_1()
+    test2024_2()
     
 
 if __name__ == "__main__":
