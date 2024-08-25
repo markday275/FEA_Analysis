@@ -31,7 +31,7 @@ class BarElement:
     Bar Element: Made up of 2 nodes\n
     Alpha is assumed to be in degrees not needs if both element pos are defined
     """
-    def __init__(self, name, alpha, E, A, L, node1: Node, node2: Node):
+    def __init__(self, name: str, alpha: int, E: float, A: float, L: float, node1: Node, node2: Node, distributedLoadtype:list = None, distributedLoadforce: list = None, distributedLoadpoint: list = None):
         """
         Class for Bar elements.
         alpha is in degrees
@@ -43,12 +43,21 @@ class BarElement:
         self.L = L
         self.node1 = node1
         self.node2 = node2
+        self.distributedLoadtype = distributedLoadtype
+        self.distributedLoadforce = distributedLoadforce
+        self.a = distributedLoadpoint
+        self.forceEquivalent = None
+        self.GlobalForcesEquivalent = None
+        self.Qeq = None
         self.localStiffnessmatrix = None
         self.StiffnessMatrix = None
+        self.GlobalStiffnessMatrix = None
         self.AssemblyMatrix = None
         self.GlobalForces = None
+        self.localforces = None
         self.TransMatrix = None
-        self.deflection = None
+        self.deflectionlocal = None
+        self.Globaldeflection = None
         self.forces = None
         self.stress = None
         self.strain = None
@@ -67,6 +76,12 @@ class BarElement:
                                                      [-1, 1]])
         self.localStiffnessmatrix = K_e
 
+    def setforceEquivalent(self):
+        """doesn't work just in here to function with frames"""
+        Feq = np.zeros((2, 1), dtype=float)
+                
+        self.forceEquivalent = Feq
+
     def setTransMatrix(self):
         if self.alpha is None:
             alpha = np.arctan2(self.node2.YPos - self.node1.YPos, self.node2.XPos - self.node1.XPos)
@@ -74,8 +89,16 @@ class BarElement:
             alpha = self.alpha
 
         self.TransMatrix = np.array([[np.cos(alpha), np.sin(alpha), 0, 0],
-                                 [0, 0, np.cos(alpha), np.sin(alpha)]])
-        
+                                     [0, 0, np.cos(alpha), np.sin(alpha)]])
+
+    def setGlobalForcesEquivalent(self):
+        if self.TransMatrix is None:
+            self.setTransMatrix()
+        if self.forceEquivalent is None:
+            self.setforceEquivalent()
+        self.GlobalForcesEquivalent =  self.TransMatrix.T @ self.forceEquivalent
+        self.Qeq = self.AssemblyMatrix @ self.GlobalForcesEquivalent
+
     def setStiffnessMatrix(self):
         """
         returns the stiffness matrix as a numpy nested list ie [[],[]]\n
@@ -105,80 +128,27 @@ class BarElement:
             A_e[dofmap[i2][1] - 1][3] = 1
         self.AssemblyMatrix = A_e
 
-class BeamElement:
-    def __init__(self, name, alpha, E, I, L, node1: Node, node2: Node):
-        self.name = name
-        self.alpha = alpha * np.pi / 180
-        self.E = E
-        self.I = I
-        self.L = L
-        self.node1 = node1
-        self.node2 = node2
-        self.localStiffnessmatrix = None
-        self.StiffnessMatrix = None
-        self.AssemblyMatrix = None
-        self.GlobalForces = None
-        self.TransMatrix = None
-        self.deflection = None
-        self.forces = None
-        self.stress = None
-        self.strain = None
-
-    def __repr__(self):
-        return (f"BeamElement(name={self.name}, "
-                f"node1={self.node1}, node2={self.node2}, "
-                f"localStiffnessmatrix=\n{self.localStiffnessmatrix}, "
-                f"StiffnessMatrix=\n{self.StiffnessMatrix})")
-    
-    def setlocalStiffnessMatrix(self):
-        """
-        returns the global stiffness matrix as a numpy nested list ie [[],[]]
-        """
-        K_e = (self.E * self.I / (self.L ** 3)) * np.array([[12,        6*self.L,       -12,        6*self.L],
-                                                            [6*self.L,  4*(self.L**2),  -6*self.L,  2*(self.L**2)],
-                                                            [-12,       -6*self.L,      12,         -6*self.L],
-                                                            [6*self.L,  2*(self.L**2),  -6*self.L,  4*(self.L**2)]])
-        self.localStiffnessmatrix = K_e
-
-    def setTransMatrix(self):
-        if self.alpha is None:
-            alpha = np.arctan2(self.node2.YPos - self.node1.YPos, self.node2.XPos - self.node1.XPos)
-        else:
-            alpha = self.alpha
-
-        self.TransMatrix = np.array([[np.cos(alpha), np.sin(alpha), 0, 0],
-                                     [0, 0, np.cos(alpha), np.sin(alpha)],
-                                     [0,0,0,0],
-                                     [0,0,0,1]])
+    def interpolation(self, numpoints, point=None, coords = None):
+        if coords is not None and coords not in {'local', 'global'}:
+            raise ValueError("The 'coords' parameter must be either 'local' or 'global'.")
         
-    def setStiffnessMatrix(self):
-        """
-        returns the stiffness matrix as a numpy nested list ie [[],[]]\n
-        IN GLOBAL CORDANATES 
-        """
-        if self.localStiffnessmatrix is None:
-            self.setlocalStiffnessMatrix()
-        if self.TransMatrix is None:
-            self.setTransMatrix()
-        K_e_global = np.transpose(self.TransMatrix) @ self.localStiffnessmatrix @ self.TransMatrix
-        self.StiffnessMatrix = K_e_global
+        x = np.linspace(0, self.L, numpoints)
 
-    def setAssemblyMatrix(self, dofnum, dofmap, nodelist): 
-        A_e = np.zeros((dofnum,4))
-        for node in nodelist:
-            if node == self.node1:
-                i = nodelist.index(node)
-            if node == self.node2:
-                i2 = nodelist.index(node)
-        if self.node1.DofX :
-            A_e[dofmap[i][0] - 1][0] = 1
-        if self.node2.DofX:
-            A_e[dofmap[i2][0] - 1][2] = 1
-        if self.node1.DofY:
-            A_e[dofmap[i][1] - 1][1] = 1
-        if self.node2.DofY:
-            A_e[dofmap[i2][1] - 1][3] = 1
-        self.AssemblyMatrix = A_e
+        xs_interpolated = x * np.cos(self.alpha) 
+        ys_interpolated = x * np.sin(self.alpha) 
+
+        return (xs_interpolated, ys_interpolated)
+            
+           
+            
+    def solveNodePos(self):
+        """node1, alhpa and L must be defined for this"""
+        if (self.node1.XPos is None or self.node1.YPos is None or self.L is None or self.alpha is None):
+            raise ValueError("""node1, alhpa and L must be defined for this""")
+        if (self.node2.XPos is not None and self.node2.YPos is not None):
+            return
+        self.node2.XPos = self.node1.XPos + self.L * np.cos(self.alpha)
+        self.node2.YPos = self.node1.YPos + self.L * np.sin(self.alpha)
 
 class FrameElement:
     def __init__(self, name: str, alpha: int, E: float, A: float, I:float, L: float, node1: Node, node2: Node, distributedLoadtype:list = None, distributedLoadforce: list = None, distributedLoadpoint: list = None):
@@ -444,7 +414,7 @@ class Structure:
             if node.DofY:
                 self.Totdof += 1
                 nodemap[1] = self.Totdof
-            if node.DofRotZ:
+            if node.DofRotZ and type(self.elements[0]) is FrameElement:
                 self.Totdof += 1
                 nodemap[2] = self.Totdof
             self.dofmap.append(nodemap)
@@ -469,7 +439,7 @@ class Structure:
                 Q.append([node.ExternalLoadX])
             if node.DofY:
                 Q.append([node.ExternalLoadY])
-            if node.DofRotZ:
+            if node.DofRotZ and type(self.elements[0]) is FrameElement:
                 Q.append([node.ExternalMomentZ])
         Q = np.array(Q)
         
@@ -499,7 +469,8 @@ class Structure:
             if element.GlobalForcesEquivalent is None:
                 element.setGlobalForcesEquivalent()
             element.GlobalForces = element.StiffnessMatrix @ element.AssemblyMatrix.T @ self.GlobalDisplacement
-            element.localforces = element.TransMatrix.T @ element.GlobalForces
+            element.localforces = element.localStiffnessmatrix @ element.deflectionlocal
+
 
     def setElementDisplacement(self):
         if self.GlobalDisplacement is None:
@@ -511,6 +482,7 @@ class Structure:
                 element.setAssemblyMatrix()
             element.Globaldeflection = element.AssemblyMatrix.T @ self.GlobalDisplacement
             element.deflectionlocal = element.TransMatrix @ element.Globaldeflection
+
 
     def setElementForces(self):
         for element in self.elements:
@@ -532,10 +504,13 @@ class Structure:
                         node.Reactions += element.GlobalForces[3:6] - element.GlobalForcesEquivalent[3:6]
 
     def setElementStressStrain(self):
+        i = 0
+        if type(self.elements[0]) is BarElement:
+            i = 2
         for element in self.elements:
             if element.deflectionlocal is None:
                 self.setElementDisplacement()
-            element.strain = (element.deflectionlocal[3][0] - element.deflectionlocal[0][0]) / element.L
+            element.strain = (element.deflectionlocal[3-i][0] - element.deflectionlocal[0][0]) / element.L
             element.stress = element.E * element.strain
 
     def plotelements(self, numpoints):
@@ -562,37 +537,34 @@ class Structure:
         self.plotelements(numpoints)
         self.plotdeflectedelements(scale, numpoints)
         self.ax.grid(True)
+        self.ax.set_title(self.name)
         plt.show()
 
     def solve(self):
         self.setGlobalStiffnessMatrix()
         self.setexeternalLoads()
         self.setGlobalDisplacement()
-        self.setElementGlobalForces()
         self.setElementDisplacement()
+        self.setElementGlobalForces()
         self.setElementForces()
         self.setReactionForces()
         self.setElementStressStrain()
 
 def main():
+    l = 10
     node1 = Node("Node1", 0, 0, False, False, 0, 0)
-    node2 = Node("Node2", 0, 3, True, True, 10000, 0, DoFRotZ= True)
-    node3 = Node("Node3", 4.5, 3, True, True, 10000, 0, DoFRotZ=True)
-    node4 = Node("Node4", 4.5, 0, False, False, 0, 0)
+    node2 = Node("Node2", None, None, True, True, 0, -20000)
+    node3 = Node("Node3", None, None, False, False, 0, 0)
 
-    frame1 = FrameElement("Frame1", alpha= 90, E= 200e9, A= 5e-4, I=1e-5, L=3, node1= node1, node2= node2)
-    frame2 = FrameElement("Frame2", alpha= 0, E= 200e9, A= 5e-4, I=1e-5, L=4.5, node1= node2, node2= node3, 
-                          distributedLoadtype= ['UDL', 'MSPL'], distributedLoadforce= [-10000, -50000])
-    frame3 = FrameElement("Frame3", alpha=270, E=200e9, A=5e-4, I=1e-5, L=3, node1=node3, node2=node4)
+    frame1 = BarElement("Frame1", alpha= 0, E= 200e9, A= 4e-4, L=1.1, node1= node1, node2= node2)
+    frame2 = BarElement("Frame2", alpha= 55, E= 200e9, A= 6e-4, L=0.8, node1= node2, node2= node3)
 
 
     structure = Structure("struct")
     structure.add_element(frame1)
     structure.add_element(frame2)
-    structure.add_element(frame3)
 
     structure.solve()
-    print(structure.GlobalDisplacement*1e3)
     structure.plot(20, 10)
 
 

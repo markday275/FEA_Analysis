@@ -141,6 +141,10 @@ def distloadangle(alpha):
     """
     return (np.sin(np.radians(alpha)), np.cos(np.radians(alpha)))
 
+def length(x1, y1, x2, y2):
+    
+    return np.sqrt((x2-x1)**2+(y2-y1)**2)
+
     
     
     
@@ -564,6 +568,9 @@ def test2024_2():
     frame2 =FrameElement("frame2", -9.46, E=E, A=A, I=I, L=L2, node1=node2, node2=node3,
                          distributedLoadtype=['DAL', 'UDL'], distributedLoadforce=[1000*4*disloadX, -1000*4*disloadY])
     
+    print(1000*4*disloadX)
+    print(-1000*4*disloadY)
+
     #set up of structure and added frames and solved
     structure = Structure("structure1")
     structure.add_element(frame1)
@@ -577,9 +584,92 @@ def test2024_2():
     #matplotlib structure at 25x deformations and element interpolated for 10 points
     structure.plot(25, 10)
 
+def Assignment1Bar():
+    E = 200e9
+    A = 8e-4
+    L1 = 2
+    L2 = length(0,0,1.3333,1.2)
+    L3 = 1.3333
+    L4 = length(1.3333, 1.2, 2, 0)
+    L5 = length(1.3333, 1.2, 2.6666, 0.8)
+    L6 = length(2, 0, 2.6666, 0.8)
+    L7 = 2
+    L8 = length(2.6666, 0.8, 4, 0)
+
+    node1 = Node("node1", XPos=0, YPos=0, DoFX=False, DoFY=False, ExternalLoadX= 0, ExternalLoadY=0, DoFRotZ=False)
+    node2 = Node("node2", XPos=0, YPos=1.2, DoFX=False, DoFY=False, ExternalLoadX= 0, ExternalLoadY=0, DoFRotZ=False)
+    node3 = Node("node3", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
+    node4 = Node("node4", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
+    node5 = Node("node5", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
+    node6 = Node("node6", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= -25000, DoFRotZ=True)
+
+    frame1 =BarElement("frame1", 0,                                           E=E, A=A, L=L1, node1=node1, node2=node4)
+    frame2 =BarElement("frame2", np.degrees(np.arctan(1.2/1.3333)),           E=E, A=A, L=L2, node1=node1, node2=node3)
+    frame3 =BarElement("frame3", 0,                                           E=E, A=A, L=L3, node1=node2, node2=node3)
+    frame4 =BarElement("frame4", -np.degrees(np.arctan(1.2/(2-1.3333))),      E=E, A=A, L=L4, node1=node3, node2=node4)
+    frame5 =BarElement("frame5", -np.degrees(np.arctan((1.2-0.8)/1.3333)),    E=E, A=A, L=L5, node1=node3, node2=node5)
+    frame6 =BarElement("frame6", np.degrees(np.arctan(0.8/(2.6666-2))),       E=E, A=A, L=L6, node1=node4, node2=node5)
+    frame7 =BarElement("frame7", 0,                                           E=E, A=A, L=L7, node1=node4, node2=node6)
+    frame8 =BarElement("frame8", -np.degrees(np.arctan(0.8/(4-2.6666))),      E=E, A=A, L=L8, node1=node5, node2=node6)
+
+    structure = Structure("FRAME STRUCTURE")
+    structure.add_element(frame1)
+    structure.add_element(frame2)
+    structure.add_element(frame3)
+    structure.add_element(frame4)
+    structure.add_element(frame5)
+    structure.add_element(frame6)
+    structure.add_element(frame7)
+    structure.add_element(frame8)
+    structure.solve()
+
+    structure.plot(20, 10)
+
+def Assignment1Frame():
+    E = 200e9
+    I = 2e-5
+    A = 8e-4
+    L1 = 2
+    L2 = length(0,0,1.3333,1.2)
+    L3 = 1.3333
+    L4 = length(1.3333, 1.2, 2, 0)
+    L5 = length(1.3333, 1.2, 2.6666, 0.8)
+    L6 = length(2, 0, 2.6666, 0.8)
+    L7 = 2
+    L8 = length(2.6666, 0.8, 4, 0)
+
+    node1 = Node("node1", XPos=0, YPos=0, DoFX=False, DoFY=False, ExternalLoadX= 0, ExternalLoadY=0, DoFRotZ=False)
+    node2 = Node("node2", XPos=0, YPos=1.2, DoFX=False, DoFY=False, ExternalLoadX= 0, ExternalLoadY=0, DoFRotZ=False)
+    node3 = Node("node3", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
+    node4 = Node("node4", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
+    node5 = Node("node5", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
+    node6 = Node("node6", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= -25000, DoFRotZ=True)
+
+    frame1 =FrameElement("frame1", 0,                                           E=E, A=A, I=I, L=L1, node1=node1, node2=node4)
+    frame2 =FrameElement("frame2", np.degrees(np.arctan(1.2/1.3333)),           E=E, A=A, I=I, L=L2, node1=node1, node2=node3)
+    frame3 =FrameElement("frame3", 0,                                           E=E, A=A, I=I, L=L3, node1=node2, node2=node3)
+    frame4 =FrameElement("frame4", -np.degrees(np.arctan(1.2/(2-1.3333))),      E=E, A=A, I=I, L=L4, node1=node3, node2=node4)
+    frame5 =FrameElement("frame5", -np.degrees(np.arctan((1.2-0.8)/1.3333)),    E=E, A=A, I=I, L=L5, node1=node3, node2=node5)
+    frame6 =FrameElement("frame6", np.degrees(np.arctan(0.8/(2.6666-2))),       E=E, A=A, I=I, L=L6, node1=node4, node2=node5)
+    frame7 =FrameElement("frame7", 0,                                           E=E, A=A, I=I, L=L7, node1=node4, node2=node6)
+    frame8 =FrameElement("frame8", -np.degrees(np.arctan(0.8/(4-2.6666))),      E=E, A=A, I=I, L=L8, node1=node5, node2=node6)
+
+    structure = Structure("FRAME STRUCTURE")
+    structure.add_element(frame1)
+    structure.add_element(frame2)
+    structure.add_element(frame3)
+    structure.add_element(frame4)
+    structure.add_element(frame5)
+    structure.add_element(frame6)
+    structure.add_element(frame7)
+    structure.add_element(frame8)
+    structure.solve()
+
+    structure.plot(20, 10)
+    
+
 def main():
-    test2024_1()
-    test2024_2()
+    Assignment1Frame()
     
 
 if __name__ == "__main__":
