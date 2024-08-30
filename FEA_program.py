@@ -145,6 +145,16 @@ def length(x1, y1, x2, y2):
     
     return np.sqrt((x2-x1)**2+(y2-y1)**2)
 
+def alpha(structure: Structure):
+
+    for element in structure.elements:
+        print(f"{element.name} alpha: \n {element.alpha * 180 / np.pi}\n")
+    print("Done\n")
+
+def printlegnth(structure: Structure):
+    for element in structure.elements:
+        print(f"{element.name} alpha: \n {element.L}\n")
+    print("Done\n")
     
     
     
@@ -586,7 +596,7 @@ def test2024_2():
 
 def Assignment1Bar():
     E = 200e9
-    A = 8e-4
+    A = 8.29e-4
     L1 = 2
     L2 = length(0,0,1.3333,1.2)
     L3 = 1.3333
@@ -596,8 +606,8 @@ def Assignment1Bar():
     L7 = 2
     L8 = length(2.6666, 0.8, 4, 0)
 
-    node1 = Node("node1", XPos=0, YPos=0, DoFX=False, DoFY=False, ExternalLoadX= 0, ExternalLoadY=0, DoFRotZ=False)
-    node2 = Node("node2", XPos=0, YPos=1.2, DoFX=False, DoFY=False, ExternalLoadX= 0, ExternalLoadY=0, DoFRotZ=False)
+    node1 = Node("node1", XPos=0, YPos=0, DoFX=False, DoFY=False, ExternalLoadX= 0, ExternalLoadY=0, DoFRotZ=True)
+    node2 = Node("node2", XPos=0, YPos=1.2, DoFX=False, DoFY=False, ExternalLoadX= 0, ExternalLoadY=0, DoFRotZ=True)
     node3 = Node("node3", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
     node4 = Node("node4", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
     node5 = Node("node5", XPos= None,YPos= None, DoFX= True, DoFY= True, ExternalLoadX= 0, ExternalLoadY= 0, DoFRotZ=True)
@@ -623,12 +633,19 @@ def Assignment1Bar():
     structure.add_element(frame8)
     structure.solve()
 
+    printK_G(structure)
+
+    alpha(structure)
+
+    printstandardtestQ(structure)
+
     structure.plot(20, 10)
+    
 
 def Assignment1Frame():
     E = 200e9
-    I = 2e-5
-    A = 8e-4
+    I = 2.04e-7
+    A = 8.29e-4
     L1 = 2
     L2 = length(0,0,1.3333,1.2)
     L3 = 1.3333
@@ -665,11 +682,14 @@ def Assignment1Frame():
     structure.add_element(frame8)
     structure.solve()
 
+    printstandardtestQ(structure)
+    print(structure.elements[6].GlobalStiffnessMatrix)
+
     structure.plot(20, 10)
     
 
 def main():
-    Assignment1Frame()
+    Assignment1Bar()
     
 
 if __name__ == "__main__":
