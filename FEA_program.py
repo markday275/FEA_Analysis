@@ -602,7 +602,10 @@ def test2024_2():
 
 def Assignment1Bar():
     E = 200e9
+    I = 2.04e-7
+    #I = 2.89e-6
     A = 8.29e-4
+    #A = 5.89e-3
     L1 = 2
     L2 = length(0,0,1.3333,1.2)
     L3 = 1.3333
@@ -639,9 +642,7 @@ def Assignment1Bar():
     structure.add_element(frame8)
     structure.solve()
 
-    printK_G(structure)
-
-    alpha(structure)
+    printstress(structure)
 
     printstandardtestQ(structure)
 
@@ -651,7 +652,9 @@ def Assignment1Bar():
 def Assignment1Frame():
     E = 200e9
     I = 2.04e-7
+    #I = 2.89e-6
     A = 8.29e-4
+    #A = 5.89e-3
     L1 = 2
     L2 = length(0,0,1.3333,1.2)
     L3 = 1.3333
@@ -691,12 +694,13 @@ def Assignment1Frame():
     printstandardtestQ(structure)
     printstress(structure)
     stressbending(structure, 0.025)
+    printK_G(structure)
 
     structure.plot(50, 10)
     
 
 def main():
-    Assignment1Frame()
+    Assignment1Bar()
     
 
 if __name__ == "__main__":
