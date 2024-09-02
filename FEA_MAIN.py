@@ -510,7 +510,7 @@ class Structure:
         for element in self.elements:
             if element.deflectionlocal is None:
                 self.setElementDisplacement()
-            element.strain = (element.deflectionlocal[3-i][0] - element.deflectionlocal[0][0]) / element.L
+            element.strain = (element.deflectionlocal[3-i][0] - element.deflectionlocal[0][0]) / element.L 
             element.stress = element.E * element.strain
 
     def plotelements(self, numpoints):
@@ -538,6 +538,7 @@ class Structure:
         self.plotdeflectedelements(scale, numpoints)
         self.ax.grid(True)
         self.ax.set_title(self.name)
+        self.ax.set_aspect('equal')
         plt.show()
 
     def solve(self):

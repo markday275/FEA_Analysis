@@ -155,8 +155,14 @@ def printlegnth(structure: Structure):
     for element in structure.elements:
         print(f"{element.name} alpha: \n {element.L}\n")
     print("Done\n")
-    
-    
+
+def stressbending(structure: Structure, c):
+    print("bending stress Pa:")
+    for element in structure.elements:
+        bendingstress = - (element.localforces[5] - element.localforces[2]) * c / element.I
+        print(f"{element.name}: {bendingstress}\n")
+    print("Done\n")
+
     
 
 def test2020_1():
@@ -683,13 +689,14 @@ def Assignment1Frame():
     structure.solve()
 
     printstandardtestQ(structure)
-    print(structure.elements[6].GlobalStiffnessMatrix)
+    printstress(structure)
+    stressbending(structure, 0.025)
 
-    structure.plot(20, 10)
+    structure.plot(50, 10)
     
 
 def main():
-    Assignment1Bar()
+    Assignment1Frame()
     
 
 if __name__ == "__main__":
